@@ -8,42 +8,42 @@ export default function AdminSidebar() {
       <ul className="space-y-4 font-medium">
         <li>
           <Link className="hover:text-secondary" to="/admin/dashboard">
-            📊 Dashboard
+            Dashboard
           </Link>
         </li>
         <li>
           <Link className="hover:text-secondary" to="/admin/shipments">
-            📦 Shipments
+            Shipments
           </Link>
         </li>
         <li>
           <Link className="hover:text-secondary" to="/admin/riders">
-            🚴 Riders
+            Riders
           </Link>
         </li>
         <li>
-          <Link className="hover:text-secondary" to="/admin/partners">
-            🤝 Partners
+          <Link className="hover:text-secondary" to="/admin/assignments">
+            Assignments
           </Link>
         </li>
         <li>
           <Link className="hover:text-secondary" to="/admin/iot">
-            🌡 IoT Center
+            IoT Center
           </Link>
         </li>
         <li>
           <Link className="hover:text-secondary" to="/admin/blockchain">
-            ⛓ Blockchain
+            Blockchain
           </Link>
         </li>
         <li>
           <Link className="hover:text-secondary" to="/admin/profile">
-            👤 Profile
+            Profile
           </Link>
         </li>
         <li>
           <Link className="hover:text-secondary" to="/login">
-            🚪 Logout
+            Logout
           </Link>
         </li>
       </ul>

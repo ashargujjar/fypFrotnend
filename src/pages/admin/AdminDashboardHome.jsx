@@ -14,10 +14,10 @@ export default function AdminDashboardHome() {
           </h1>
 
           <div className="grid md:grid-cols-4 gap-6 mb-10">
-            <StatCard title="Total Shipments" value="1240" icon="📦" />
-            <StatCard title="Active Shipments" value="89" icon="🚚" />
-            <StatCard title="Delivered Today" value="57" icon="✅" />
-            <StatCard title="Partners" value="42" icon="🤝" />
+            <StatCard title="Total Shipments" value="1240" icon="TS" />
+            <StatCard title="Active Shipments" value="89" icon="AS" />
+            <StatCard title="Delivered Today" value="57" icon="DT" />
+            <StatCard title="Customers" value="42" icon="C" />
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">

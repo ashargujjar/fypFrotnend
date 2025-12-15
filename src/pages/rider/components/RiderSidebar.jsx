@@ -8,17 +8,22 @@ export default function RiderSidebar() {
       <ul className="space-y-3 md:space-y-4 font-medium">
         <li>
           <Link className="hover:text-secondary" to="/rider/dashboard">
-            Tasks
+            Overview
           </Link>
         </li>
         <li>
-          <Link className="hover:text-secondary" to="/rider/scan">
-            Scan QR
+          <Link className="hover:text-secondary" to="/rider/pickups">
+            Pickup Tasks
           </Link>
         </li>
         <li>
-          <Link className="hover:text-secondary" to="/rider/navigation">
-            Navigation
+          <Link className="hover:text-secondary" to="/rider/linehaul">
+            Linehaul / Hub
+          </Link>
+        </li>
+        <li>
+          <Link className="hover:text-secondary" to="/rider/deliveries">
+            Delivery Tasks
           </Link>
         </li>
         <li>

@@ -47,9 +47,42 @@ export default function Assignments() {
 
   const [orders, setOrders] = useState(initialOrders);
   const [selectedRiders, setSelectedRiders] = useState({});
+  const [assignmentFilter, setAssignmentFilter] = useState("all");
+  const [routeFilter, setRouteFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("assigned-first");
 
   const unassignedCount = orders.filter((o) => !o.rider).length;
   const assignedToday = orders.filter((o) => o.rider).length;
+
+  const getCity = (value) => (value || "").split(" - ")[0].trim();
+  const isIntercity = (order) => {
+    const pickupCity = getCity(order.pickup);
+    const dropoffCity = getCity(order.dropoff);
+    if (!pickupCity || !dropoffCity) return false;
+    return pickupCity !== dropoffCity;
+  };
+
+  const filteredOrders = orders.filter((order) => {
+    const assigned = !!order.rider;
+    if (assignmentFilter === "assigned" && !assigned) return false;
+    if (assignmentFilter === "unassigned" && assigned) return false;
+    if (routeFilter === "intracity" && isIntercity(order)) return false;
+    if (routeFilter === "intercity" && !isIntercity(order)) return false;
+    return true;
+  });
+
+  const sortedOrders = filteredOrders.slice().sort((a, b) => {
+    if (sortBy === "assigned-first") {
+      return Number(!!b.rider) - Number(!!a.rider);
+    }
+    if (sortBy === "unassigned-first") {
+      return Number(!!a.rider) - Number(!!b.rider);
+    }
+    if (sortBy === "order") {
+      return a.id.localeCompare(b.id);
+    }
+    return 0;
+  });
 
   const handleAssign = (orderId) => {
     const rider = selectedRiders[orderId];
@@ -107,13 +140,48 @@ export default function Assignments() {
           </div>
 
           <div className="bg-white p-6 rounded-xl shadow overflow-x-auto">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
               <h2 className="text-xl font-semibold text-primary">
                 Unassigned Rider Orders
               </h2>
-              <p className="text-sm text-gray-600">
-                Choose a rider and click Assign to dispatch.
-              </p>
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <p className="text-sm text-gray-600">
+                  Choose a rider and click Assign to dispatch.
+                </p>
+                <div className="bg-white border rounded-full shadow px-2 py-1">
+                  <select
+                    value={assignmentFilter}
+                    onChange={(e) => setAssignmentFilter(e.target.value)}
+                    className="bg-transparent text-sm focus:outline-none"
+                  >
+                    <option value="all">All</option>
+                    <option value="assigned">Assigned</option>
+                    <option value="unassigned">Unassigned</option>
+                  </select>
+                </div>
+                <div className="bg-white border rounded-full shadow px-2 py-1">
+                  <select
+                    value={routeFilter}
+                    onChange={(e) => setRouteFilter(e.target.value)}
+                    className="bg-transparent text-sm focus:outline-none"
+                  >
+                    <option value="all">All Routes</option>
+                    <option value="intracity">City to City</option>
+                    <option value="intercity">Intercity</option>
+                  </select>
+                </div>
+                <div className="bg-white border rounded-full shadow px-2 py-1">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="bg-transparent text-sm focus:outline-none"
+                  >
+                    <option value="assigned-first">Assigned First</option>
+                    <option value="unassigned-first">Unassigned First</option>
+                    <option value="order">Order ID</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <table className="w-full text-left min-w-[720px]">
@@ -128,7 +196,7 @@ export default function Assignments() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
+                {sortedOrders.map((order) => (
                   <tr key={order.id} className="border-b hover:bg-gray-50">
                     <td className="p-3">
                       <p className="font-semibold">{order.id}</p>
@@ -178,6 +246,16 @@ export default function Assignments() {
                     </td>
                   </tr>
                 ))}
+                {sortedOrders.length === 0 && (
+                  <tr>
+                    <td
+                      className="p-6 text-center text-gray-500"
+                      colSpan={6}
+                    >
+                      No orders match the current filters.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

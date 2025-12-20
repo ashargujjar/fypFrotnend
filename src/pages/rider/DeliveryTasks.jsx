@@ -47,11 +47,7 @@ const buildOtpFromBoxes = (currentValue, index, nextChar) => {
 };
 
 export default function DeliveryTasks() {
-  const [tasks, setTasks] = useState(
-    demoDeliveries.filter(
-      (t) => t.origin_city === t.destination_city // hide intercity tasks for delivery riders
-    )
-  );
+  const [tasks, setTasks] = useState(demoDeliveries);
   const [statusMap, setStatusMap] = useState({});
   const [routePreview, setRoutePreview] = useState(null);
   const [otpInputs, setOtpInputs] = useState({});
@@ -107,6 +103,20 @@ export default function DeliveryTasks() {
     setStatus(id, "Collecting PIN");
   };
 
+  const statusCounts = tasks.reduce(
+    (acc, task) => {
+      const status = statusMap[task.id] || "Assigned";
+      acc.total += 1;
+      if (status === "Assigned") acc.assigned += 1;
+      else if (status === "Out for Delivery" || status === "Arrived")
+        acc.inProgress += 1;
+      else if (status === "PIN Verified") acc.verified += 1;
+      else acc.other += 1;
+      return acc;
+    },
+    { total: 0, assigned: 0, inProgress: 0, verified: 0, other: 0 }
+  );
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-light">
       <RiderSidebar />
@@ -116,17 +126,23 @@ export default function DeliveryTasks() {
         <div className="p-4 sm:p-6 md:p-8 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-primary">
-                Delivery Tasks
-              </h1>
+              <h1 className="text-2xl font-bold text-primary">My Assignments</h1>
               <p className="text-gray-600">
                 Final-mile only. Intercity legs stay hidden until parcels reach
                 destination hubs.
               </p>
             </div>
-            <span className="text-sm bg-white border px-3 py-1 rounded-full shadow">
-              Pending: {tasks.length}
-            </span>
+            <div className="flex flex-wrap gap-2 text-sm">
+              <span className="bg-white border px-3 py-1 rounded-full shadow">
+                Assigned: {statusCounts.assigned}
+              </span>
+              <span className="bg-white border px-3 py-1 rounded-full shadow">
+                In Progress: {statusCounts.inProgress}
+              </span>
+              <span className="bg-white border px-3 py-1 rounded-full shadow">
+                PIN Verified: {statusCounts.verified}
+              </span>
+            </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
@@ -198,27 +214,41 @@ function DeliveryCard({
   startCollectingOtp,
   otpError,
 }) {
+  const statusStyles = {
+    Assigned: "bg-slate-50 text-slate-700 border border-slate-200",
+    Unassigned: "bg-gray-50 text-gray-600 border border-gray-200",
+    "Out for Delivery": "bg-blue-50 text-blue-700 border border-blue-100",
+    Arrived: "bg-amber-50 text-amber-700 border border-amber-100",
+    "Collecting PIN": "bg-purple-50 text-purple-700 border border-purple-100",
+    "PIN Verified": "bg-emerald-50 text-emerald-700 border border-emerald-100",
+    Delivered: "bg-green-50 text-green-700 border border-green-100",
+  };
+  const statusClass =
+    statusStyles[status] || "bg-slate-50 text-slate-700 border border-slate-200";
+  const codLabel = task.cod > 0 ? `Rs ${task.cod}` : "Prepaid";
+  const otpDigits = (otpValue || "").padEnd(4, "").slice(0, 4).split("");
+
   return (
-    <div className="bg-white shadow rounded-xl p-5 space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="bg-white shadow rounded-xl p-5 space-y-4 border border-transparent hover:border-primary/20 transition">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs text-gray-500">Shipment {task.shipmentId}</p>
           <h3 className="text-lg font-bold text-primary">{task.id}</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Drop-off: {task.dropoff}
+          </p>
         </div>
-        <span className="px-3 py-1 rounded-full text-xs bg-amber-50 text-amber-700">
+        <span className={`px-3 py-1 rounded-full text-xs ${statusClass}`}>
           {status}
         </span>
       </div>
 
       <div className="text-sm text-gray-700 space-y-1">
         <p>
-          <strong>Drop-off:</strong> {task.dropoff}
-        </p>
-        <p>
           <strong>Receiver:</strong> {task.receiver}
         </p>
         <p>
-          <strong>COD:</strong> Rs {task.cod}
+          <strong>COD:</strong> {codLabel}
         </p>
         <p className="text-gray-500">{task.notes}</p>
       </div>
@@ -255,16 +285,26 @@ function DeliveryCard({
           <p className="text-sm font-semibold text-primary">
             Enter 4-digit PIN sent to customer
           </p>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              maxLength={4}
-              value={otpValue}
-              onChange={(e) =>
-                onOtpChange(task.id, e.target.value.replace(/\\D/g, ""))
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2 w-24 text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              {otpDigits.map((digit, index) => (
+                <input
+                  key={`${task.id}-otp-${index}`}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\\d*"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) =>
+                    onOtpChange(
+                      task.id,
+                      buildOtpFromBoxes(otpValue, index, e.target.value)
+                    )
+                  }
+                  className="border border-gray-300 rounded-lg h-11 w-11 text-center text-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              ))}
+            </div>
             <button
               onClick={() => onVerifyOtp(task)}
               className="bg-primary text-white px-3 py-2 rounded-lg hover:bg-blue-700"

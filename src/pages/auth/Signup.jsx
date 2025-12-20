@@ -5,9 +5,13 @@ export default function Signup() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    company: "",
     name: "",
     email: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    postalCode: "",
     password: "",
   });
 
@@ -22,16 +26,10 @@ export default function Signup() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-light p-6">
       <div className="bg-white shadow-xl rounded-xl p-10 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-primary mb-2">Partner Signup</h1>
-        <p className="text-gray-500 mb-6">Create your business account.</p>
-
-        <input
-          type="text"
-          name="company"
-          placeholder="Company Name"
-          className="w-full mb-4 px-4 py-3 border rounded-lg"
-          onChange={update}
-        />
+        <h1 className="text-3xl font-bold text-primary mb-2">
+          Customer Signup
+        </h1>
+        <p className="text-gray-500 mb-6">Create your customer account.</p>
 
         <input
           type="text"
@@ -46,6 +44,47 @@ export default function Signup() {
           name="email"
           placeholder="Business Email"
           className="w-full mb-4 px-4 py-3 border rounded-lg"
+          onChange={update}
+        />
+
+        <input
+          type="tel"
+          name="phone"
+          placeholder="Phone Number"
+          className="w-full mb-4 px-4 py-3 border rounded-lg"
+          onChange={update}
+        />
+
+        <input
+          type="text"
+          name="address"
+          placeholder="Street Address"
+          className="w-full mb-4 px-4 py-3 border rounded-lg"
+          onChange={update}
+        />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <input
+            type="text"
+            name="city"
+            placeholder="City"
+            className="w-full px-4 py-3 border rounded-lg"
+            onChange={update}
+          />
+          <input
+            type="text"
+            name="state"
+            placeholder="State/Province"
+            className="w-full px-4 py-3 border rounded-lg"
+            onChange={update}
+          />
+        </div>
+
+        <input
+          type="text"
+          name="postalCode"
+          placeholder="Postal Code"
+          className="w-full mb-4 mt-4 px-4 py-3 border rounded-lg"
           onChange={update}
         />
 

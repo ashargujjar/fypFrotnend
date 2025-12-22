@@ -28,7 +28,7 @@ export default function Navbar() {
         {/* Buttons */}
         <div className="space-x-4 hidden md:flex">
           <Link
-            to={"/login"}
+            to={"/role"}
             className="px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition"
           >
             Login

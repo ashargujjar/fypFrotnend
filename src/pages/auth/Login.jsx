@@ -1,26 +1,29 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 
 export default function Login() {
   const navigate = useNavigate();
-  const query = new URLSearchParams(useLocation().search);
-  const role = query.get("role") || "partner";
+  const [searchParams] = useSearchParams();
+  const role = (searchParams.get("role") || "customer").toLowerCase();
+  const roleConfig = {
+    admin: { title: "Admin Login", redirect: "/admin/dashboard" },
+    rider: { title: "Rider Login", redirect: "/rider/dashboard" },
+    partner: { title: "Customer Login", redirect: "/customer/dashboard" },
+    customer: { title: "Customer Login", redirect: "/customer/dashboard" },
+  };
+  const { title, redirect } = roleConfig[role] || roleConfig.customer;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleLogin = () => {
-    if (role === "admin") navigate("/admin/dashboard");
-    else if (role === "partner") navigate("/customer/dashboard");
-    else if (role === "rider") navigate("/rider/dashboard");
+    navigate(redirect);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-light p-6">
       <div className="bg-white shadow-xl rounded-xl p-10 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-primary mb-2">
-          {role.charAt(0).toUpperCase() + role.slice(1)} Login
-        </h1>
+        <h1 className="text-3xl font-bold text-primary mb-2">{title}</h1>
         <p className="text-gray-500 mb-6">
           Enter your credentials to continue.
         </p>
@@ -46,17 +49,6 @@ export default function Login() {
           Login
         </button>
 
-        {role === "partner" && (
-          <p className="text-gray-600 text-sm mt-4 text-center">
-            New Partner?{" "}
-            <span
-              className="text-primary font-semibold cursor-pointer"
-              onClick={() => navigate("/signup")}
-            >
-              Signup
-            </span>
-          </p>
-        )}
       </div>
     </div>
   );

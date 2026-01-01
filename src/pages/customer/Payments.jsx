@@ -1,4 +1,3 @@
-import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
 import { useState } from "react";
 
@@ -53,17 +52,11 @@ export default function Payments() {
   const [topUpAmount, setTopUpAmount] = useState("");
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-light">
-      {/* Sidebar */}
-      <Sidebar />
+    <div className="min-h-screen bg-light">
+      <Topbar />
 
-      {/* Main Area */}
-      <div className="flex-1">
-        <Topbar />
-
-        <div className="p-4 sm:p-6 md:p-8">
-          {/* PAGE TITLE */}
-          <h1 className="text-2xl font-bold text-primary mb-6">Payments</h1>
+      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+        <h1 className="text-2xl font-bold text-primary mb-6">Payments</h1>
 
           {/* COD Wallet Summary */}
           <div className="bg-white shadow rounded-xl p-5 mb-6 space-y-4">
@@ -243,7 +236,6 @@ export default function Payments() {
             </div>
           </div>
 
-        </div>
       </div>
     </div>
   );

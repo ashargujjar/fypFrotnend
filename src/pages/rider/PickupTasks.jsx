@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import RiderSidebar from "./components/RiderSidebar";
 import RiderTopbar from "./components/RiderTopbar";
 
@@ -11,6 +12,7 @@ const demoPickups = [
     notes: "Keep upright; fragile glassware",
     origin_city: "Lahore",
     destination_city: "Lahore",
+    iotRequired: ["GPS", "Shock"],
   },
   {
     id: "PK-1202",
@@ -20,6 +22,7 @@ const demoPickups = [
     notes: "Collect COD Rs 1500 at pickup",
     origin_city: "Lahore",
     destination_city: "Lahore",
+    iotRequired: ["Temperature"],
   },
   {
     id: "PK-1203",
@@ -28,18 +31,21 @@ const demoPickups = [
     contact: "+92 300 5552211",
     notes: "Temperature-controlled box",
     origin_city: "Faisalabad",
-    destination_city: "Karachi", // intercity → hidden from pickup list
+    destination_city: "Karachi", // intercity ??? hidden from pickup list
+    iotRequired: ["GPS", "Temperature"],
   },
 ];
 
+
 export default function PickupTasks() {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState(
     demoPickups.filter(
       (t) => t.origin_city === t.destination_city // hide intercity for pickup riders
     )
   );
   const [statusMap, setStatusMap] = useState({});
-  const [routePreview, setRoutePreview] = useState(null);
+  const [iotMap, setIotMap] = useState({});
 
   const setStatus = (id, status) =>
     setStatusMap((prev) => ({ ...prev, [id]: status }));
@@ -51,11 +57,26 @@ export default function PickupTasks() {
     }
   };
 
+  const updateIot = (id, updates) =>
+    setIotMap((prev) => ({
+      ...prev,
+      [id]: {
+        deviceType: "",
+        deviceId: "",
+        status: "Not attached",
+        ...prev[id],
+        ...updates,
+      },
+    }));
+
   const handleRoute = (task) => {
-    setRoutePreview({
-      from: "Your current location",
-      to: task.pickupAddress,
-      label: `Route to pickup for ${task.shipmentId}`,
+    navigate("/rider/route", {
+      state: {
+        title: `Route to pickup for ${task.shipmentId}`,
+        from: "Your current location",
+        to: task.pickupAddress,
+        note: `Pickup task ${task.id}`,
+      },
     });
   };
 
@@ -84,7 +105,9 @@ export default function PickupTasks() {
                 key={task.id}
                 task={task}
                 status={statusMap[task.id] || "Assigned"}
+                iotState={iotMap[task.id]}
                 onAdvance={advance}
+                onIotChange={updateIot}
                 onRoute={handleRoute}
               />
             ))}
@@ -94,38 +117,19 @@ export default function PickupTasks() {
               </div>
             )}
           </div>
-
-          {routePreview && (
-            <div className="bg-white rounded-xl shadow p-6 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Map Preview</p>
-                  <h3 className="text-lg font-bold text-primary">
-                    {routePreview.label}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    From: {routePreview.from} → To: {routePreview.to}
-                  </p>
-                </div>
-                <button
-                  className="text-sm text-gray-500 hover:text-primary"
-                  onClick={() => setRoutePreview(null)}
-                >
-                  Close
-                </button>
-              </div>
-              <div className="w-full h-64 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500">
-                Map will render here (pickup route)
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
   );
 }
 
-function TaskCard({ task, status, onAdvance, onRoute }) {
+function TaskCard({ task, status, iotState, onAdvance, onIotChange, onRoute }) {
+  const iot = iotState || {
+    deviceId: "",
+  };
+  const requiresIot = (task.iotRequired || []).length > 0;
+  const showIot = requiresIot && status === "Arrived at Pickup";
+
   return (
     <div className="bg-white shadow rounded-xl p-5 space-y-3">
       <div className="flex items-center justify-between">
@@ -146,7 +150,41 @@ function TaskCard({ task, status, onAdvance, onRoute }) {
           <strong>Contact:</strong> {task.contact}
         </p>
         <p className="text-gray-500">{task.notes}</p>
+        {requiresIot && (
+          <p className="text-xs text-amber-700 font-semibold">
+            IoT required for this pickup.
+          </p>
+        )}
       </div>
+
+      {showIot && (
+        <div className="border rounded-lg p-3 bg-slate-50 space-y-2">
+          <p className="text-sm font-semibold text-primary">
+            Attach IoT Device
+          </p>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <input
+              type="text"
+              value={iot.deviceId}
+              onChange={(e) =>
+                onIotChange(task.id, { deviceId: e.target.value })
+              }
+              placeholder="Enter device ID"
+              className="border rounded-lg px-3 py-2 col-span-2"
+            />
+            <button
+              onClick={() =>
+                onIotChange(task.id, {
+                  status: "Device attached",
+                })
+              }
+              className="bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
+            >
+              Attach IoT Device
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2 text-sm">
         <button
@@ -160,12 +198,6 @@ function TaskCard({ task, status, onAdvance, onRoute }) {
           className="bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
         >
           Arrive
-        </button>
-        <button
-          onClick={() => onAdvance(task.id, "Scanning QR")}
-          className="bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
-        >
-          Scan QR
         </button>
         <button
           onClick={() => onAdvance(task.id, "Pickup Completed")}

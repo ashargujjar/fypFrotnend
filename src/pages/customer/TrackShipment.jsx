@@ -1,48 +1,57 @@
-import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { shipments } from "./data/shipments";
 
 export default function TrackShipment() {
-  const [trackingId, setTrackingId] = useState("");
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const [trackingId, setTrackingId] = useState(id ?? "");
   const [shipment, setShipment] = useState(null);
+  const [error, setError] = useState("");
 
-  // Dummy shipment response
-  const sampleShipment = {
-    id: "SS-1012",
-    status: "In Transit",
-    location: "Rawalpindi",
-    eta: "2 hours",
-    lastUpdate: "2025-01-21 01:10 PM",
-    timeline: [
-      { event: "Picked Up", time: "2025-01-20 10:30 AM" },
-      { event: "Left Warehouse", time: "2025-01-20 12:45 PM" },
-      { event: "In Transit – Motorway", time: "2025-01-21 01:10 PM" },
-    ],
-    mapPlaceholder: true,
-  };
+  useEffect(() => {
+    if (!id) {
+      setShipment(null);
+      setError("");
+      return;
+    }
+    const matched = shipments.find(
+      (item) => item.id.toLowerCase() === id.toLowerCase()
+    );
+    if (!matched) {
+      setShipment(null);
+      setError("No shipment found for that ID.");
+      return;
+    }
+    setShipment(matched);
+    setError("");
+  }, [id]);
 
   const handleTrack = () => {
-    if (trackingId.trim() !== "") {
-      setShipment(sampleShipment);
-    }
+    const nextId = trackingId.trim();
+    if (!nextId) return;
+    navigate(`/customer/track/${nextId}`);
   };
 
+  const statusClass =
+    shipment?.status === "Delivered"
+      ? "text-green-600"
+      : shipment?.status === "In Transit"
+        ? "text-yellow-600"
+        : shipment?.status === "Alert"
+          ? "text-red-600"
+          : "text-gray-600";
+
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-light">
-      {/* Sidebar */}
-      <Sidebar />
+    <div className="min-h-screen bg-light">
+      <Topbar />
 
-      {/* Main Area */}
-      <div className="flex-1">
-        <Topbar />
+      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+        <h1 className="text-2xl font-bold text-primary mb-6">
+          Track Shipment
+        </h1>
 
-        <div className="p-4 sm:p-6 md:p-8">
-          {/* PAGE TITLE */}
-          <h1 className="text-2xl font-bold text-primary mb-6">
-            Track Shipment
-          </h1>
-
-          {/* SEARCH BOX */}
           <div className="bg-white p-6 rounded-xl shadow-md flex flex-col md:flex-row items-center gap-4">
             <input
               type="text"
@@ -59,10 +68,12 @@ export default function TrackShipment() {
             </button>
           </div>
 
-          {/* RESULT CARD */}
+          {error && (
+            <p className="mt-4 text-sm text-red-600 font-medium">{error}</p>
+          )}
+
           {shipment && (
             <div className="mt-10 space-y-10">
-              {/* SUMMARY */}
               <div className="bg-white p-8 rounded-xl shadow">
                 <h2 className="text-xl font-bold text-primary mb-4">
                   Shipment Overview
@@ -76,7 +87,7 @@ export default function TrackShipment() {
 
                   <div>
                     <p className="text-gray-600">Status</p>
-                    <p className="font-bold text-yellow-600">
+                    <p className={`font-bold ${statusClass}`}>
                       {shipment.status}
                     </p>
                   </div>
@@ -93,12 +104,13 @@ export default function TrackShipment() {
 
                   <div>
                     <p className="text-gray-600">Last Update</p>
-                    <p className="font-bold text-dark">{shipment.lastUpdate}</p>
+                    <p className="font-bold text-dark">
+                      {shipment.updatedAt ?? "Recently"}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* MAP */}
               <div className="bg-white p-6 rounded-xl shadow">
                 <h2 className="text-xl font-bold text-primary mb-4">
                   Live Location
@@ -109,40 +121,44 @@ export default function TrackShipment() {
                 </div>
               </div>
 
-              {/* TIMELINE */}
               <div className="bg-white p-6 rounded-xl shadow">
                 <h2 className="text-xl font-bold text-primary mb-4">
                   Shipment Timeline
                 </h2>
 
                 <ul className="space-y-4">
-                  {shipment.timeline.map((item, i) => (
-                    <li key={i} className="border-l-4 border-primary pl-4">
-                      <p className="font-semibold">{item.event}</p>
-                      <p className="text-gray-500 text-sm">{item.time}</p>
+                  {shipment.timeline.map((item) => (
+                    <li
+                      key={`${shipment.id}-${item.timestamp}`}
+                      className="border-l-4 border-primary pl-4"
+                    >
+                      <p className="font-semibold">{item.label}</p>
+                      <p className="text-gray-500 text-sm">
+                        {item.timestamp}
+                      </p>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              {/* IOT ALERTS */}
               <div className="bg-white p-6 rounded-xl shadow">
                 <h2 className="text-xl font-bold text-primary mb-4">
                   IoT Alerts
                 </h2>
 
                 <ul className="space-y-3">
-                  <li className="bg-red-100 text-red-700 p-3 rounded-lg font-semibold">
-                    Temperature exceeded threshold at 1:45 PM
-                  </li>
-                  <li className="bg-yellow-100 text-yellow-700 p-3 rounded-lg font-semibold">
-                    Route deviation detected
-                  </li>
+                  {shipment.alerts.map((alert) => (
+                    <li
+                      key={`${shipment.id}-${alert}`}
+                      className="bg-red-100 text-red-700 p-3 rounded-lg font-semibold"
+                    >
+                      {alert}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
           )}
-        </div>
       </div>
     </div>
   );

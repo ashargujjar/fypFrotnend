@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/public/Home";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 import DashboardHome from "./pages/customer/DashboardHome";
 import MyShipments from "./pages/customer/MyShipments";
 import ShipmentDetails from "./pages/customer/ShipmentDetails";
@@ -18,10 +20,10 @@ import DeliveryTasks from "./pages/rider/DeliveryTasks";
 import POD from "./pages/rider/POD";
 import RiderProfile from "./pages/rider/RiderProfile";
 import RiderAlerts from "./pages/rider/RiderAlerts";
+import RiderRouteMap from "./pages/rider/RiderRouteMap";
 import Notfound from "./pages/Notfound";
 import PublicTrack from "./pages/public/PublicTrack";
 import AdminProfile from "./pages/admin/AdminProfile";
-import BlockchainLogs from "./pages/admin/BlockchainLogs";
 import IoTCenter from "./pages/admin/IoTCenter";
 import Riders from "./pages/admin/Riders";
 import ShipmentDetailsAdmin from "./pages/admin/ShipmentDetailsAdmin";
@@ -30,22 +32,37 @@ import AdminDashboardHome from "./pages/admin/AdminDashboardHome";
 import Assignments from "./pages/admin/Assignments";
 import RoleSelect from "./pages/auth/RoleSelect";
 import AddRider from "./pages/admin/AddRider";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function App() {
   return (
     <BrowserRouter>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        draggable
+        theme="colored"
+      />
       <Routes>
         <Route path="/" element={<Home />} />
 
         <Route path="/role" element={<RoleSelect />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/customer" element={<DashboardHome />} />
         <Route path="/customer/dashboard" element={<DashboardHome />} />
         <Route path="/customer/shipments" element={<MyShipments />} />
         <Route path="/customer/shipments/:id" element={<ShipmentDetails />} />
         <Route path="/customer/book" element={<BookShipment />} />
         <Route path="/customer/track" element={<TrackShipment />} />
+        <Route path="/customer/track/:id" element={<ShipmentDetails />} />
         <Route path="/customer/payments" element={<Payments />} />
         <Route path="/customer/complaints" element={<Complaints />} />
         <Route path="/customer/profile" element={<Profile />} />
@@ -59,6 +76,7 @@ function App() {
         <Route path="/rider/pickups" element={<PickupTasks />} />
         <Route path="/rider/linehaul" element={<LinehaulTasks />} />
         <Route path="/rider/deliveries" element={<DeliveryTasks />} />
+        <Route path="/rider/route" element={<RiderRouteMap />} />
         <Route path="/rider/pod" element={<POD />} />
         <Route path="/rider/profile" element={<RiderProfile />} />
         <Route path="/rider/alerts" element={<RiderAlerts />} />
@@ -71,7 +89,6 @@ function App() {
         <Route path="/admin/riders" element={<Riders />} />
         <Route path="/admin/assignments" element={<Assignments />} />
         <Route path="/admin/iot" element={<IoTCenter />} />
-        <Route path="/admin/blockchain" element={<BlockchainLogs />} />
         <Route path="/admin/profile" element={<AdminProfile />} />
         <Route path="/admin/riders/add" element={<AddRider />} />
       </Routes>

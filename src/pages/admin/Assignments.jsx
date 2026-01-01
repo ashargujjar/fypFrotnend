@@ -51,9 +51,6 @@ export default function Assignments() {
   const [routeFilter, setRouteFilter] = useState("all");
   const [sortBy, setSortBy] = useState("assigned-first");
 
-  const unassignedCount = orders.filter((o) => !o.rider).length;
-  const assignedToday = orders.filter((o) => o.rider).length;
-
   const getCity = (value) => (value || "").split(" - ")[0].trim();
   const isIntercity = (order) => {
     const pickupCity = getCity(order.pickup);
@@ -61,6 +58,11 @@ export default function Assignments() {
     if (!pickupCity || !dropoffCity) return false;
     return pickupCity !== dropoffCity;
   };
+
+  const unassignedCount = orders.filter((o) => !o.rider).length;
+  const assignedToday = orders.filter((o) => o.rider).length;
+  const intercityCount = orders.filter((order) => isIntercity(order)).length;
+  const intracityCount = orders.length - intercityCount;
 
   const filteredOrders = orders.filter((order) => {
     const assigned = !!order.rider;
@@ -110,7 +112,7 @@ export default function Assignments() {
         <div className="p-8 space-y-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-primary">Rider Assignments</h1>
+              <h1 className="text-2xl font-bold text-primary">Assignment Management</h1>
               <p className="text-gray-600">
                 Track unassigned orders and dispatch the nearest rider.
               </p>
@@ -128,22 +130,25 @@ export default function Assignments() {
               accent="text-red-600 bg-red-50"
             />
             <OverviewCard
-              label="Assigned To Riders"
-              value={assignedToday}
-              accent="text-green-600 bg-green-50"
+              label="Linehaul / Hub Transfer"
+              value={intercityCount}
+              accent="text-amber-600 bg-amber-50"
             />
             <OverviewCard
-              label="Riders Online"
-              value={riders.length}
+              label="In-City Assignments"
+              value={intracityCount}
               accent="text-blue-600 bg-blue-50"
             />
           </div>
 
           <div className="bg-white p-6 rounded-xl shadow overflow-x-auto">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
-              <h2 className="text-xl font-semibold text-primary">
-                Unassigned Rider Orders
-              </h2>
+              <div>
+                <h2 className="text-xl font-semibold text-primary">Assignment Queue</h2>
+                <p className="text-sm text-gray-500">
+                  Linehaul / Hub Transfer = Intercity routes.
+                </p>
+              </div>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <p className="text-sm text-gray-600">
                   Choose a rider and click Assign to dispatch.
@@ -166,8 +171,8 @@ export default function Assignments() {
                     className="bg-transparent text-sm focus:outline-none"
                   >
                     <option value="all">All Routes</option>
-                    <option value="intracity">City to City</option>
-                    <option value="intercity">Intercity</option>
+                    <option value="intracity">In-city</option>
+                    <option value="intercity">Intercity / Linehaul</option>
                   </select>
                 </div>
                 <div className="bg-white border rounded-full shadow px-2 py-1">
@@ -184,13 +189,14 @@ export default function Assignments() {
               </div>
             </div>
 
-            <table className="w-full text-left min-w-[720px]">
+            <table className="w-full text-left min-w-[820px]">
               <thead>
                 <tr className="bg-gray-50 border-b text-gray-600 text-sm">
                   <th className="p-3 font-semibold">Order ID</th>
                   <th className="p-3 font-semibold">Customer</th>
                   <th className="p-3 font-semibold">Pickup</th>
                   <th className="p-3 font-semibold">Drop-off</th>
+                  <th className="p-3 font-semibold">Route Type</th>
                   <th className="p-3 font-semibold">Time Window</th>
                   <th className="p-3 font-semibold">Assign Rider</th>
                 </tr>
@@ -206,10 +212,21 @@ export default function Assignments() {
                     </td>
                     <td className="p-3">
                       <p className="font-semibold">{order.customer}</p>
-                      <p className="text-xs text-gray-500">Priority</p>
+                      <p className="text-xs text-gray-500">Standard</p>
                     </td>
                     <td className="p-3 text-sm text-gray-700">{order.pickup}</td>
                     <td className="p-3 text-sm text-gray-700">{order.dropoff}</td>
+                    <td className="p-3 text-sm">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs ${
+                          isIntercity(order)
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-emerald-50 text-emerald-700"
+                        }`}
+                      >
+                        {isIntercity(order) ? "Linehaul / Hub Transfer" : "In-city"}
+                      </span>
+                    </td>
                     <td className="p-3 text-sm text-gray-700">{order.window}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
@@ -221,12 +238,12 @@ export default function Assignments() {
                               [order.id]: e.target.value,
                             }))
                           }
-                          className="border rounded-lg px-3 py-2 text-sm w-40"
+                          className="border rounded-lg px-3 py-2 text-sm w-44"
                         >
                           <option value="">Select Rider</option>
                           {riders.map((rider) => (
                             <option key={rider.id} value={rider.name}>
-                              {rider.name} · {rider.zone}
+                              {rider.name} - {rider.zone}
                             </option>
                           ))}
                         </select>
@@ -248,10 +265,7 @@ export default function Assignments() {
                 ))}
                 {sortedOrders.length === 0 && (
                   <tr>
-                    <td
-                      className="p-6 text-center text-gray-500"
-                      colSpan={6}
-                    >
+                    <td className="p-6 text-center text-gray-500" colSpan={7}>
                       No orders match the current filters.
                     </td>
                   </tr>
@@ -273,7 +287,7 @@ function OverviewCard({ label, value, accent }) {
         <p className={`text-2xl font-bold ${accent}`}>{value}</p>
       </div>
       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${accent}`}>
-        ●
+        i
       </div>
     </div>
   );

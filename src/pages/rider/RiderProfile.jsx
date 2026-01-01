@@ -27,6 +27,24 @@ export default function RiderProfile() {
             </div>
 
             <div>
+              <label className="font-semibold">Full Name</label>
+              <input
+                className="w-full px-4 py-3 border rounded-lg outline-none mt-2"
+                defaultValue="John Rider"
+                disabled
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold">Email</label>
+              <input
+                type="email"
+                className="w-full px-4 py-3 border rounded-lg outline-none mt-2"
+                defaultValue="john.rider@example.com"
+              />
+            </div>
+
+            <div>
               <label className="font-semibold">Phone</label>
               <input
                 className="w-full px-4 py-3 border rounded-lg outline-none mt-2"
@@ -35,7 +53,24 @@ export default function RiderProfile() {
             </div>
 
             <div>
-              <label className="font-semibold">Password</label>
+              <label className="font-semibold">City</label>
+              <input
+                className="w-full px-4 py-3 border rounded-lg outline-none mt-2"
+                defaultValue="Lahore"
+                disabled
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold">Old Password</label>
+              <input
+                type="password"
+                className="w-full px-4 py-3 border rounded-lg outline-none mt-2"
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold">New Password</label>
               <input
                 type="password"
                 className="w-full px-4 py-3 border rounded-lg outline-none mt-2"

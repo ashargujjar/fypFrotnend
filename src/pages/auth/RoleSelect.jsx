@@ -23,10 +23,10 @@ export default function RoleSelect() {
           </button>
 
           <button
-            onClick={() => navigate("/login?role=partner")}
+            onClick={() => navigate("/login?role=customer")}
             className="py-3 bg-primary text-white rounded-lg text-lg hover:bg-blue-700 transition"
           >
-            Partner Login
+            Customer Login
           </button>
 
           <button

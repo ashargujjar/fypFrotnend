@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import RiderSidebar from "./components/RiderSidebar";
 import RiderTopbar from "./components/RiderTopbar";
 
@@ -38,22 +39,15 @@ const demoDeliveries = [
   },
 ];
 
-const buildOtpFromBoxes = (currentValue, index, nextChar) => {
-  const sanitized = (nextChar || "").replace(/\D/g, "");
-  const chars = (currentValue || "").split("");
-  while (chars.length < 4) chars.push("");
-  chars[index] = sanitized.slice(-1);
-  return chars.slice(0, 4).join("");
-};
-
 export default function DeliveryTasks() {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState(demoDeliveries);
   const [statusMap, setStatusMap] = useState({});
-  const [routePreview, setRoutePreview] = useState(null);
   const [otpInputs, setOtpInputs] = useState({});
   const [otpVerified, setOtpVerified] = useState({});
   const [collectingOtp, setCollectingOtp] = useState({});
   const [otpError, setOtpError] = useState({});
+  const [iotDetachMap, setIotDetachMap] = useState({});
 
   const setStatus = (id, status) =>
     setStatusMap((prev) => ({ ...prev, [id]: status }));
@@ -64,10 +58,13 @@ export default function DeliveryTasks() {
   };
 
   const handleRoute = (task) => {
-    setRoutePreview({
-      from: "Your current location",
-      to: task.dropoff,
-      label: `Route to delivery for ${task.shipmentId}`,
+    navigate("/rider/route", {
+      state: {
+        title: `Route to delivery for ${task.shipmentId}`,
+        from: "Your current location",
+        to: task.dropoff,
+        note: `Delivery task ${task.id}`,
+      },
     });
   };
 
@@ -102,6 +99,17 @@ export default function DeliveryTasks() {
     setCollectingOtp((prev) => ({ ...prev, [id]: true }));
     setStatus(id, "Collecting PIN");
   };
+
+  const updateIotDetach = (id, updates) =>
+    setIotDetachMap((prev) => ({
+      ...prev,
+      [id]: {
+        deviceId: "",
+        status: "Pending detach",
+        ...prev[id],
+        ...updates,
+      },
+    }));
 
   const statusCounts = tasks.reduce(
     (acc, task) => {
@@ -161,6 +169,8 @@ export default function DeliveryTasks() {
                 showOtp={!!collectingOtp[task.id]}
                 startCollectingOtp={startCollectingOtp}
                 otpError={otpError[task.id]}
+                iotDetachState={iotDetachMap[task.id]}
+                onIotDetachChange={updateIotDetach}
               />
             ))}
             {tasks.length === 0 && (
@@ -170,30 +180,6 @@ export default function DeliveryTasks() {
             )}
           </div>
 
-          {routePreview && (
-            <div className="bg-white rounded-xl shadow p-6 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Map Preview</p>
-                  <h3 className="text-lg font-bold text-primary">
-                    {routePreview.label}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    From: {routePreview.from} | To: {routePreview.to}
-                  </p>
-                </div>
-                <button
-                  className="text-sm text-gray-500 hover:text-primary"
-                  onClick={() => setRoutePreview(null)}
-                >
-                  Close
-                </button>
-              </div>
-              <div className="w-full h-64 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500">
-                Map will render here (delivery route)
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -213,6 +199,8 @@ function DeliveryCard({
   showOtp,
   startCollectingOtp,
   otpError,
+  iotDetachState,
+  onIotDetachChange,
 }) {
   const statusStyles = {
     Assigned: "bg-slate-50 text-slate-700 border border-slate-200",
@@ -226,7 +214,11 @@ function DeliveryCard({
   const statusClass =
     statusStyles[status] || "bg-slate-50 text-slate-700 border border-slate-200";
   const codLabel = task.cod > 0 ? `Rs ${task.cod}` : "Prepaid";
-  const otpDigits = (otpValue || "").padEnd(4, "").slice(0, 4).split("");
+  const iotDetach = iotDetachState || {
+    deviceId: "",
+    status: "Pending detach",
+  };
+  const isDetached = iotDetach.status === "Device detached";
 
   return (
     <div className="bg-white shadow rounded-xl p-5 space-y-4 border border-transparent hover:border-primary/20 transition">
@@ -286,25 +278,16 @@ function DeliveryCard({
             Enter 4-digit PIN sent to customer
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              {otpDigits.map((digit, index) => (
-                <input
-                  key={`${task.id}-otp-${index}`}
-                  type="text"
-                  inputMode="numeric"
-                  pattern="\\d*"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) =>
-                    onOtpChange(
-                      task.id,
-                      buildOtpFromBoxes(otpValue, index, e.target.value)
-                    )
-                  }
-                  className="border border-gray-300 rounded-lg h-11 w-11 text-center text-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              ))}
-            </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="\\d*"
+              maxLength={4}
+              value={otpValue}
+              onChange={(e) => onOtpChange(task.id, e.target.value)}
+              placeholder="Enter 4-digit PIN"
+              className="border border-gray-300 rounded-lg px-3 py-2 w-44 focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
             <button
               onClick={() => onVerifyOtp(task)}
               className="bg-primary text-white px-3 py-2 rounded-lg hover:bg-blue-700"
@@ -322,12 +305,44 @@ function DeliveryCard({
       )}
 
       {isVerified && (
-        <button
-          onClick={() => onComplete(task.id)}
-          className="bg-green-600 text-white rounded-lg px-3 py-2 w-full hover:bg-green-700"
-        >
-          Delivery Completed (POD)
-        </button>
+        <div className="space-y-3">
+          <div className="border rounded-lg p-3 bg-slate-50 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-primary">Detach IoT Device</p>
+              <span className="text-xs text-gray-500">{iotDetach.status}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <input
+                type="text"
+                value={iotDetach.deviceId}
+                onChange={(e) =>
+                  onIotDetachChange(task.id, { deviceId: e.target.value })
+                }
+                placeholder="Enter device ID to detach"
+                className="border rounded-lg px-3 py-2 col-span-2"
+              />
+              <button
+                onClick={() =>
+                  onIotDetachChange(task.id, { status: "Device detached" })
+                }
+                className="bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
+              >
+                Detach IoT Device
+              </button>
+            </div>
+          </div>
+          <button
+            onClick={() => onComplete(task.id)}
+            disabled={!isDetached}
+            className={`rounded-lg px-3 py-2 w-full ${
+              isDetached
+                ? "bg-green-600 text-white hover:bg-green-700"
+                : "bg-gray-200 text-gray-500 cursor-not-allowed"
+            }`}
+          >
+            Delivery Completed (POD)
+          </button>
+        </div>
       )}
     </div>
   );

@@ -25,7 +25,6 @@ export default function RiderDashboardHome() {
       cta: "Go to Deliveries",
     },
   ];
-
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-light">
       <RiderSidebar />
@@ -62,12 +61,27 @@ export default function RiderDashboardHome() {
             ))}
           </div>
 
+          <div className="bg-white rounded-xl shadow p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-primary">IoT Alerts</h2>
+              <p className="text-sm text-gray-600">
+                View temperature and shock breaches for assigned shipments.
+              </p>
+            </div>
+            <button
+              onClick={() => (window.location.href = "/rider/alerts")}
+              className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+            >
+              View Alerts
+            </button>
+          </div>
+
           <div className="bg-white rounded-xl shadow p-6">
             <h2 className="text-lg font-bold text-primary mb-3">Flow Guidance</h2>
-            <ul className="list-disc list-inside text-gray-700 space-y-1 text-sm">
-              <li>Pickups: Start → Arrive → Scan QR → Confirm Pickup → Hand off to hub.</li>
-              <li>Linehaul: Start Trip → Reach Destination Hub → Upload manifest.</li>
-              <li>Delivery: Start Delivery → Arrived → Collect OTP/Signature → POD photo → Deliver.</li>
+                        <ul className="list-disc list-inside text-gray-700 space-y-1 text-sm">
+              <li>Pickups: Start -> Arrive -> Confirm Pickup -> Hand off to hub.</li>
+              <li>Linehaul: Start Trip -> Reach Destination Hub -> Upload manifest.</li>
+              <li>Delivery: Start Delivery -> Arrived -> Collect OTP/Signature -> POD photo -> Deliver.</li>
             </ul>
           </div>
         </div>

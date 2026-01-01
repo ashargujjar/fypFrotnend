@@ -1,5 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { toastSuccess, toastError } from "../../utils/toast";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -8,19 +11,35 @@ export default function Signup() {
     name: "",
     email: "",
     phone: "",
-    address: "",
-    city: "",
-    state: "",
-    postalCode: "",
     password: "",
+    role: "customer",
   });
-
+  const [isLoading, setLoading] = useState(false);
   const update = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSignup = () => {
-    navigate("/customer/dashboard");
+  const handleSignup = async () => {
+    setLoading(true);
+    const res = await fetch(`${API_URL}/user/signup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(form),
+    });
+    if (!res.ok) {
+      setLoading(false);
+
+      const result = await res.json();
+      toastError(result?.message ?? "Something went wrong");
+      return;
+    }
+    if (res.ok) {
+      setLoading(false);
+      navigate("/login?role=customer");
+      toastSuccess("Login successful");
+    }
   };
 
   return (
@@ -56,39 +75,6 @@ export default function Signup() {
         />
 
         <input
-          type="text"
-          name="address"
-          placeholder="Street Address"
-          className="w-full mb-4 px-4 py-3 border rounded-lg"
-          onChange={update}
-        />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <input
-            type="text"
-            name="city"
-            placeholder="City"
-            className="w-full px-4 py-3 border rounded-lg"
-            onChange={update}
-          />
-          <input
-            type="text"
-            name="state"
-            placeholder="State/Province"
-            className="w-full px-4 py-3 border rounded-lg"
-            onChange={update}
-          />
-        </div>
-
-        <input
-          type="text"
-          name="postalCode"
-          placeholder="Postal Code"
-          className="w-full mb-4 mt-4 px-4 py-3 border rounded-lg"
-          onChange={update}
-        />
-
-        <input
           type="password"
           name="password"
           placeholder="Password"
@@ -100,7 +86,11 @@ export default function Signup() {
           onClick={handleSignup}
           className="w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-blue-700 transition"
         >
-          Create Account
+          {isLoading ? (
+            <span className="loading loading-spinner loading-lg"></span>
+          ) : (
+            "Create Account"
+          )}
         </button>
 
         <p className="text-gray-600 text-sm mt-4 text-center">

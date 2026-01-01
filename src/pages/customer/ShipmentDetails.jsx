@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
 import { shipments } from "./data/shipments";
 
@@ -195,19 +194,16 @@ export default function ShipmentDetails() {
   }, [shipment?.id]);
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-light">
-      <Sidebar />
+    <div className="min-h-screen bg-light">
+      <Topbar />
 
-      <div className="flex-1">
-        <Topbar />
-
-        <div className="p-4 sm:p-6 md:p-8">
-          {/* TOP BAR: SHIPMENT SELECTOR */}
-          <div className="flex flex-col gap-4 mb-4 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm text-gray-500">
-              Select a shipment to view its live telemetry, route, IoT data, and
-              alerts.
-            </p>
+      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+        {/* TOP BAR: SHIPMENT SELECTOR */}
+        <div className="flex flex-col gap-4 mb-4 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-gray-500">
+            Select a shipment to view its live telemetry, route, IoT data, and
+            alerts.
+          </p>
 
             <select
               value={shipment?.id ?? ""}
@@ -223,12 +219,12 @@ export default function ShipmentDetails() {
                 </option>
               ))}
             </select>
-          </div>
+        </div>
 
-          {/* TITLE */}
-          <h1 className="text-2xl font-bold text-primary mb-6">
-            Shipment Details {shipment ? `- ${shipment.id}` : ""}
-          </h1>
+        {/* TITLE */}
+        <h1 className="text-2xl font-bold text-primary mb-6">
+          Shipment Details {shipment ? `- ${shipment.id}` : ""}
+        </h1>
 
           {!shipment ? (
             <div className="bg-white p-6 rounded-xl shadow text-gray-600">
@@ -470,33 +466,8 @@ export default function ShipmentDetails() {
                 </ul>
               </div>
 
-              {/* ============================= */}
-              {/* POD SECTION                   */}
-              {/* ============================= */}
-              <div className="bg-white p-6 shadow rounded-xl mb-20">
-                <h2 className="text-xl font-bold text-primary mb-4">
-                  Proof of Delivery
-                </h2>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="border p-4 rounded-lg">
-                    <h3 className="font-semibold mb-2">Signature</h3>
-                    <div className="w-full h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
-                      Rider Signature Here
-                    </div>
-                  </div>
-
-                  <div className="border p-4 rounded-lg">
-                    <h3 className="font-semibold mb-2">Parcel Photo</h3>
-                    <div className="w-full h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
-                      Delivery Photo Here
-                    </div>
-                  </div>
-                </div>
-              </div>
             </>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
 
 export default function Alerts() {
@@ -36,16 +35,13 @@ export default function Alerts() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-light">
-      <Sidebar />
+    <div className="min-h-screen bg-light">
+      <Topbar />
 
-      <div className="flex-1">
-        <Topbar />
-
-        <div className="p-4 sm:p-6 md:p-8">
-          <h1 className="text-2xl font-bold text-primary mb-6">
-            Alerts Center
-          </h1>
+      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+        <h1 className="text-2xl font-bold text-primary mb-6">
+          Alerts Center
+        </h1>
 
           <div className="bg-white p-6 shadow rounded-xl space-y-4">
             {alerts.map((a) => (
@@ -70,7 +66,6 @@ export default function Alerts() {
               </div>
             ))}
           </div>
-        </div>
       </div>
     </div>
   );

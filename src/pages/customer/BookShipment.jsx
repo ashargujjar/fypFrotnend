@@ -19,6 +19,8 @@ export default function BookShipment() {
   const [zonesError, setZonesError] = useState("");
   const [walletBal, setWalletBal] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deliveryCharge, setDeliveryCharge] = useState(0);
+  const [isChargeLoading, setIsChargeLoading] = useState(false);
   const token = localStorage.getItem("token");
   const [form, setForm] = useState({
     pickupCity: "",
@@ -78,12 +80,59 @@ export default function BookShipment() {
 
   const cityOptions = useMemo(() => Object.keys(cityZones).sort(), [cityZones]);
 
-  const deliveryCharge = useMemo(() => {
-    const weight = parseFloat(form.weight) || 0;
-    const base = 250;
-    const weightExtra = Math.max(weight - 1, 0) * 80;
-    return Math.round(base + weightExtra);
-  }, [form.weight]);
+  useEffect(() => {
+    const shouldCalculate =
+      form.pickupCity && form.deliveryCity && Number(form.weight) > 0;
+    if (!shouldCalculate) {
+      setDeliveryCharge(0);
+      return;
+    }
+
+    const controller = new AbortController();
+    const loadCharge = async () => {
+      try {
+        setIsChargeLoading(true);
+        const endpoint = API_URL
+          ? `${API_URL}/shipment/calculateCharges`
+          : "/shipment/calculateCharges";
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            pickupCity: form.pickupCity,
+            deliveryCity: form.deliveryCity,
+            weight: form.weight,
+          }),
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        if (res.ok) {
+          const nextCharge =
+            data?.charge ??
+            data?.deliveryCharges ??
+            data?.deliveryCharge ??
+            data?.data?.charge ??
+            data?.data?.deliveryCharge ??
+            data?.data?.deliveryCharges;
+          setDeliveryCharge(Number(nextCharge) || 0);
+        } else {
+          setDeliveryCharge(0);
+        }
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          setDeliveryCharge(0);
+        }
+      } finally {
+        setIsChargeLoading(false);
+      }
+    };
+
+    loadCharge();
+    return () => controller.abort();
+  }, [form.pickupCity, form.deliveryCity, form.weight, token]);
 
   const hasWalletBalance = useMemo(
     () => Number(walletBal) >= Number(deliveryCharge),
@@ -212,6 +261,7 @@ export default function BookShipment() {
             errors={errors}
             formatCurrency={formatCurrency}
             hasWalletBalance={hasWalletBalance}
+            isChargeLoading={isChargeLoading}
             inputClass={inputClass}
             netToWallet={netToWallet}
             setCodAmount={setCodAmount}

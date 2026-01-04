@@ -8,6 +8,7 @@ export default function DashboardHome() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
   const [shipments, setShipments] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -20,24 +21,50 @@ export default function DashboardHome() {
   useEffect(() => {
     let isMounted = true;
 
-    const loadShipments = async () => {
+    const loadDashboardData = async () => {
       try {
         setLoadError("");
-        const res = await fetch(`${API_URL}/shipment/getShipments`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data?.message || "Unable to load shipments.");
+        const [shipmentsRes, paymentsRes] = await Promise.all([
+          fetch(`${API_URL}/shipment/getShipments`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch(`${API_URL}/payments/userPayments`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+        ]);
+        const shipmentsData = await shipmentsRes.json();
+        const paymentsData = await paymentsRes.json();
+
+        if (!shipmentsRes.ok) {
+          throw new Error(
+            shipmentsData?.message || "Unable to load shipments."
+          );
         }
-        const list = Array.isArray(data?.shipments)
-          ? data.shipments
-          : Array.isArray(data)
-            ? data
+        if (!paymentsRes.ok) {
+          throw new Error(
+            paymentsData?.message || "Unable to load payments."
+          );
+        }
+
+        const shipmentList = Array.isArray(shipmentsData?.shipments)
+          ? shipmentsData.shipments
+          : Array.isArray(shipmentsData)
+            ? shipmentsData
             : [];
-        if (isMounted) setShipments(list);
+        const paymentsList = Array.isArray(paymentsData?.payments)
+          ? paymentsData.payments
+          : Array.isArray(paymentsData)
+            ? paymentsData
+            : [];
+
+        if (isMounted) {
+          setShipments(shipmentList);
+          setPayments(paymentsList);
+        }
       } catch (error) {
         if (isMounted)
           setLoadError(error?.message || "Unable to load shipments.");
@@ -47,7 +74,7 @@ export default function DashboardHome() {
     };
 
     if (token) {
-      loadShipments();
+      loadDashboardData();
     } else {
       setIsLoading(false);
     }
@@ -64,6 +91,7 @@ export default function DashboardHome() {
   const activeCount = Math.max(shipments.length - deliveredCount, 0);
   const activeValue = isLoading ? "..." : String(activeCount);
   const deliveredValue = isLoading ? "..." : String(deliveredCount);
+  const paymentsValue = isLoading ? "..." : String(payments.length);
 
   return (
     <div className="min-h-screen bg-light">
@@ -74,10 +102,25 @@ export default function DashboardHome() {
       <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <StatsCard title="Active Shipments" value={activeValue} icon="AS" />
-          <StatsCard title="Delivered" value={deliveredValue} icon="DL" />
-          <StatsCard title="Alerts" value="1" icon="AL" />
-          <StatsCard title="Payments" value="5" icon="PM" />
+          <StatsCard
+            title="Active Shipments"
+            value={activeValue}
+            icon="AS"
+            isLoading={isLoading}
+          />
+          <StatsCard
+            title="Delivered"
+            value={deliveredValue}
+            icon="DL"
+            isLoading={isLoading}
+          />
+          <StatsCard title="Alerts" value="1" icon="AL" isLoading={isLoading} />
+          <StatsCard
+            title="Payments"
+            value={paymentsValue}
+            icon="PM"
+            isLoading={isLoading}
+          />
         </div>
 
           {/* Quick Actions */}

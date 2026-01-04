@@ -5,6 +5,7 @@ export default function PaymentMethod({
   errors,
   formatCurrency,
   hasWalletBalance,
+  isChargeLoading,
   inputClass,
   netToWallet,
   setCodAmount,
@@ -33,7 +34,9 @@ export default function PaymentMethod({
           <div className="flex-1 text-sm text-gray-700">
             Delivery charges (auto)
             <div className="mt-1 w-full p-3 border rounded-lg bg-gray-100 text-gray-700">
-              {formatCurrency(deliveryCharge)}
+              {isChargeLoading
+                ? "Calculating..."
+                : formatCurrency(deliveryCharge)}
             </div>
             <p className="text-xs text-gray-500 mt-1">
               Auto-calculated by system (distance/weight). Not editable.
@@ -64,7 +67,11 @@ export default function PaymentMethod({
           />
           <SummaryCard
             label="Delivery charges"
-            value={formatCurrency(deliveryCharge || 0)}
+            value={
+              isChargeLoading
+                ? "Calculating..."
+                : formatCurrency(deliveryCharge || 0)
+            }
             hint={
               useWallet && hasWalletBalance
                 ? "Paid from wallet"

@@ -1,55 +1,126 @@
 import Topbar from "./components/Topbar";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString()}`;
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function Payments() {
-  const wallet = {
-    codCollected: 8550,
-    deliveryFees: 1150,
-    available: 7400,
-    recent: [
-      {
-        id: "CC-501",
-        shipmentId: "SS-2210",
-        collected: 2200,
-        fee: 200,
-        net: 2000,
-        status: "Pending withdrawal",
-        date: "2025-01-21",
-      },
-      {
-        id: "CC-498",
-        shipmentId: "SS-2204",
-        collected: 1800,
-        fee: 180,
-        net: 1620,
-        status: "Applied to shipment",
-        date: "2025-01-19",
-      },
-      {
-        id: "CC-492",
-        shipmentId: "SS-2195",
-        collected: 2600,
-        fee: 250,
-        net: 2350,
-        status: "Withdrawn",
-        date: "2025-01-17",
-      },
-    ],
-    bankAccounts: [
-      { id: "acct-1", label: "UBL **** 2023" },
-      { id: "acct-2", label: "Meezan **** 1190" },
-    ],
-  };
-
+  const [payments, setPayments] = useState([]);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const token = localStorage.getItem("token");
+  const bankAccounts = [
+    { id: "acct-1", label: "UBL **** 2023" },
+    { id: "acct-2", label: "Meezan **** 1190" },
+  ];
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [selectedAccount, setSelectedAccount] = useState(
-    wallet.bankAccounts[0]?.id || ""
+    bankAccounts[0]?.id || ""
   );
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPayments = async () => {
+      try {
+        setLoadError("");
+        const [paymentsRes, walletRes] = await Promise.all([
+          fetch(`${API_URL}/payments/userPayments`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch(`${API_URL}/user/walletBalance`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+        ]);
+
+        const paymentsData = await paymentsRes.json();
+        const walletData = await walletRes.json();
+
+        if (!paymentsRes.ok) {
+          throw new Error(
+            paymentsData?.message || "Unable to load payments."
+          );
+        }
+        if (!walletRes.ok) {
+          throw new Error(
+            walletData?.message || "Unable to load wallet balance."
+          );
+        }
+
+        const list = Array.isArray(paymentsData?.payments)
+          ? paymentsData.payments
+          : Array.isArray(paymentsData)
+            ? paymentsData
+            : [];
+
+        if (isMounted) {
+          setPayments(list);
+          setWalletBalance(walletData?.wallet?.balance ?? 0);
+        }
+      } catch (error) {
+        if (isMounted)
+          setLoadError(error?.message || "Unable to load payments.");
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    if (token) {
+      loadPayments();
+    } else {
+      setLoadError("Missing auth token.");
+      setIsLoading(false);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  const totals = useMemo(() => {
+    const codCollected = payments.reduce(
+      (sum, item) => sum + Number(item?.codAmount || 0),
+      0
+    );
+    const deliveryFees = payments.reduce(
+      (sum, item) => sum + Number(item?.deliveryCharges || 0),
+      0
+    );
+    return { codCollected, deliveryFees };
+  }, [payments]);
+
+  const formatDate = (value) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString("en-PK", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+  };
+
+  const statusClass = (status) => {
+    const normalized = String(status || "").toLowerCase();
+    if (normalized.includes("pending")) {
+      return "bg-amber-50 text-amber-700";
+    }
+    if (normalized.includes("paid") || normalized.includes("completed")) {
+      return "bg-green-50 text-green-700";
+    }
+    if (normalized.includes("failed") || normalized.includes("cancel")) {
+      return "bg-red-50 text-red-700";
+    }
+    return "bg-gray-100 text-gray-700";
+  };
 
   return (
     <div className="min-h-screen bg-light">
@@ -87,9 +158,9 @@ export default function Payments() {
 
             <div className="grid gap-3 sm:grid-cols-3">
               {[
-                { label: "COD Collected", value: wallet.codCollected },
-                { label: "Delivery Charges", value: wallet.deliveryFees },
-                { label: "Available Balance", value: wallet.available, accent: true },
+                { label: "COD Collected", value: totals.codCollected },
+                { label: "Delivery Charges", value: totals.deliveryFees },
+                { label: "Available Balance", value: walletBalance, accent: true },
               ].map((item) => (
                 <div
                   key={item.label}
@@ -146,7 +217,7 @@ export default function Payments() {
                       onChange={(e) => setSelectedAccount(e.target.value)}
                       className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
                     >
-                      {wallet.bankAccounts.map((acct) => (
+                      {bankAccounts.map((acct) => (
                         <option key={acct.id} value={acct.id}>
                           {acct.label}
                         </option>
@@ -158,10 +229,10 @@ export default function Payments() {
                     <input
                       type="number"
                       min="0"
-                      max={wallet.available}
+                      max={walletBalance}
                       value={withdrawAmount}
                       onChange={(e) => setWithdrawAmount(e.target.value)}
-                      placeholder={`Max ${wallet.available}`}
+                      placeholder={`Max ${walletBalance}`}
                       className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </label>
@@ -197,43 +268,67 @@ export default function Payments() {
                 </h2>
               </div>
               <span className="text-xs px-3 py-1 rounded-full bg-amber-50 text-amber-700">
-                {wallet.recent.length} records
+                {payments.length} records
               </span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="text-gray-500 bg-gray-50">
-                  <tr>
-                    <th className="p-3">Collection</th>
-                    <th className="p-3">Shipment</th>
-                    <th className="p-3">Collected</th>
-                    <th className="p-3">Delivery Fee</th>
-                    <th className="p-3">Net to Wallet</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {wallet.recent.map((row) => (
-                    <tr key={row.id} className="hover:bg-gray-50 transition">
-                      <td className="p-3 font-semibold text-primary">{row.id}</td>
-                      <td className="p-3">{row.shipmentId}</td>
-                      <td className="p-3">{formatCurrency(row.collected)}</td>
-                      <td className="p-3">{formatCurrency(row.fee)}</td>
-                      <td className="p-3 font-semibold text-gray-800">
-                        {formatCurrency(row.net)}
-                      </td>
-                      <td className="p-3">
-                        <span className="px-3 py-1 rounded-lg text-xs bg-amber-50 text-amber-700">
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="p-3 text-gray-500">{row.date}</td>
+            {isLoading ? (
+              <div className="flex items-center gap-3 text-sm text-gray-500">
+                <span className="loading loading-spinner loading-sm" />
+                Loading payments...
+              </div>
+            ) : loadError ? (
+              <p className="text-sm text-red-600">{loadError}</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-gray-500 bg-gray-50">
+                    <tr>
+                      <th className="p-3">Collection</th>
+                      <th className="p-3">Shipment</th>
+                      <th className="p-3">Collected</th>
+                      <th className="p-3">Delivery Fee</th>
+                      <th className="p-3">Net to Wallet</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3">Date</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y">
+                    {payments.map((row) => (
+                      <tr
+                        key={row._id || row.id}
+                        className="hover:bg-gray-50 transition"
+                      >
+                        <td className="p-3 font-semibold text-primary">
+                          {row._id || row.id}
+                        </td>
+                        <td className="p-3">{row.shipmentId || "-"}</td>
+                        <td className="p-3">
+                          {formatCurrency(row.codAmount)}
+                        </td>
+                        <td className="p-3">
+                          {formatCurrency(row.deliveryCharges)}
+                        </td>
+                        <td className="p-3 font-semibold text-gray-800">
+                          {formatCurrency(row.amount)}
+                        </td>
+                        <td className="p-3">
+                          <span
+                            className={`px-3 py-1 rounded-lg text-xs ${statusClass(
+                              row.status
+                            )}`}
+                          >
+                            {row.status || "Pending"}
+                          </span>
+                        </td>
+                        <td className="p-3 text-gray-500">
+                          {formatDate(row.transactionDate || row.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
       </div>

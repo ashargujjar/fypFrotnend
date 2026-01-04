@@ -38,7 +38,8 @@ export default function Signup() {
     if (res.ok) {
       setLoading(false);
       navigate("/login?role=customer");
-      toastSuccess("Login successful");
+      toastSuccess("Account created successful");
+      toastSuccess("Login now!");
     }
   };
 

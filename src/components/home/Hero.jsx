@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export default function Hero() {
   return (
     <section className="relative bg-white">
@@ -29,9 +31,12 @@ export default function Hero() {
             <button className="px-6 py-3 bg-secondary text-black font-semibold rounded-lg hover:opacity-90 transition">
               Track Shipment
             </button>
-            <button className="px-6 py-3 border-2 border-white text-white rounded-lg hover:bg-white hover:text-blue-700 transition">
+            <Link
+              to={"/role"}
+              className="px-6 py-3 border-2 border-white text-white rounded-lg hover:bg-white hover:text-blue-700 transition"
+            >
               Get Started
-            </button>
+            </Link>
           </div>
         </div>
 

@@ -16,7 +16,7 @@ export default function PaymentMethod({
     <div>
       <h2 className="text-xl font-bold text-primary mb-4">Payment Method</h2>
 
-      <div className="mt-6 space-y-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+      <div className="customer-card mt-6 space-y-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
         <div className="flex items-center justify-between gap-4">
           <label className="flex-1 text-sm text-gray-700">
             Amount to collect from customer (COD)
@@ -91,7 +91,7 @@ export default function PaymentMethod({
         </p>
       </div>
 
-      <div className="mt-6 bg-light p-4 rounded-lg border">
+      <div className="customer-card mt-6 bg-light p-4 rounded-lg border">
         <p className="text-sm text-gray-600">
           Toggle wallet to decide how you want to handle charges: ON = pay from
           wallet; OFF = deduct from COD amount.
@@ -103,7 +103,7 @@ export default function PaymentMethod({
 
 function SummaryCard({ label, value, accent, hint }) {
   return (
-    <div className="border border-gray-100 rounded-xl p-4 bg-white">
+    <div className="customer-card border border-gray-100 rounded-xl p-4 bg-white">
       <p className="text-xs text-gray-500">{label}</p>
       <p
         className={`text-xl font-bold ${

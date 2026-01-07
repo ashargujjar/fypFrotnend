@@ -93,16 +93,16 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen bg-light customer-page">
       <Topbar />
 
-      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
         <h1 className="text-2xl font-bold text-primary mb-6">
           Profile Settings
         </h1>
 
           {/* Profile Card */}
-          <div className="bg-white shadow-xl rounded-2xl p-8 md:p-10">
+          <div className="customer-card bg-white shadow-xl rounded-2xl p-8 md:p-10">
             {/* Basic Info */}
             <div className="w-full">
               <h2 className="text-xl font-semibold text-primary mb-4">
@@ -125,7 +125,7 @@ export default function Profile() {
                     type="text"
                     value={form.fullName}
                     onChange={(e) => handleChange("fullName", e.target.value)}
-                    className="w-full mt-1 px-4 py-3 border rounded-lg outline-none focus:border-primary"
+                    className="customer-input w-full mt-1 px-4 py-3 border rounded-lg outline-none focus:border-primary"
                   />
                 </div>
 
@@ -135,7 +135,7 @@ export default function Profile() {
                     type="email"
                     value={form.email}
                     onChange={(e) => handleChange("email", e.target.value)}
-                    className="w-full mt-1 px-4 py-3 border rounded-lg outline-none focus:border-primary"
+                    className="customer-input w-full mt-1 px-4 py-3 border rounded-lg outline-none focus:border-primary"
                   />
                 </div>
 
@@ -147,13 +147,13 @@ export default function Profile() {
                     type="text"
                     value={form.phone}
                     onChange={(e) => handleChange("phone", e.target.value)}
-                    className="w-full mt-1 px-4 py-3 border rounded-lg outline-none focus:border-primary"
+                    className="customer-input w-full mt-1 px-4 py-3 border rounded-lg outline-none focus:border-primary"
                   />
                 </div>
               </div>
 
               <button
-                className="mt-8 bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-70 disabled:cursor-not-allowed"
+                className="customer-button mt-8 bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-70 disabled:cursor-not-allowed"
                 disabled={isSaving || isLoading}
                 onClick={handleSave}
               >

@@ -94,14 +94,14 @@ export default function DashboardHome() {
   const paymentsValue = isLoading ? "..." : String(payments.length);
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen bg-light customer-page">
       {/* Top Bar */}
       <Topbar />
 
       {/* CONTENT */}
-      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="customer-stack grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <StatsCard
             title="Active Shipments"
             value={activeValue}
@@ -128,10 +128,10 @@ export default function DashboardHome() {
             <h3 className="text-xl font-bold text-primary mb-4">
               Quick Actions
             </h3>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="customer-stack grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Link
                 to="/customer/shipments"
-                className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="customer-card group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-primary/10 transition group-hover:scale-110" />
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white font-semibold">
@@ -147,7 +147,7 @@ export default function DashboardHome() {
 
               <Link
                 to="/customer/book"
-                className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="customer-card group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-200/40 transition group-hover:scale-110" />
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500 text-white font-semibold">
@@ -163,7 +163,7 @@ export default function DashboardHome() {
 
               <Link
                 to="/customer/track"
-                className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="customer-card group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-200/40 transition group-hover:scale-110" />
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 text-white font-semibold">
@@ -179,7 +179,7 @@ export default function DashboardHome() {
 
               <Link
                 to="/customer/payments"
-                className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="customer-card group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-sky-200/40 transition group-hover:scale-110" />
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-500 text-white font-semibold">
@@ -195,7 +195,7 @@ export default function DashboardHome() {
 
               <Link
                 to="/customer/complaints"
-                className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="customer-card group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-rose-200/40 transition group-hover:scale-110" />
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-500 text-white font-semibold">
@@ -212,13 +212,13 @@ export default function DashboardHome() {
           </div>
 
         {/* Live Shipments Table */}
-        <div className="mt-10 bg-white shadow rounded-xl p-6">
+        <div className="customer-card mt-10 bg-white shadow rounded-xl p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-xl font-bold text-primary">Live Shipments</h3>
             <button
               type="button"
               onClick={() => navigate("/customer/shipments")}
-              className="text-sm font-semibold text-primary hover:underline self-start"
+              className="customer-button text-sm font-semibold text-primary hover:underline self-start"
             >
               View more shipments
             </button>

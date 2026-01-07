@@ -158,14 +158,14 @@ export default function Complaints() {
   };
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen bg-light customer-page">
       <Topbar />
 
-      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
         <h1 className="text-2xl font-bold text-primary mb-6">Complaints</h1>
 
         {/* NEW COMPLAINT FORM */}
-        <div className="bg-white shadow rounded-xl p-8 mb-10">
+        <div className="customer-card bg-white shadow rounded-xl p-8 mb-10">
           <h2 className="text-xl font-bold text-primary mb-6">
             Submit a Complaint
           </h2>
@@ -177,7 +177,7 @@ export default function Complaints() {
                 Shipment ID
               </label>
               <select
-                className="w-full md:max-w-[260px] min-w-0 p-3 border rounded-lg outline-none focus:border-primary truncate"
+                className="customer-input w-full md:max-w-[260px] min-w-0 p-3 border rounded-lg outline-none focus:border-primary truncate"
                 value={shipmentId}
                 onChange={(e) => setShipmentId(e.target.value)}
                 disabled={
@@ -223,7 +223,7 @@ export default function Complaints() {
                 Category
               </label>
               <select
-                className="w-full p-3 border rounded-lg outline-none focus:border-primary"
+                className="customer-input w-full p-3 border rounded-lg outline-none focus:border-primary"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
@@ -243,7 +243,7 @@ export default function Complaints() {
             </label>
             <textarea
               rows="4"
-              className="w-full p-3 border rounded-lg outline-none focus:border-primary"
+              className="customer-input w-full p-3 border rounded-lg outline-none focus:border-primary"
               placeholder="Explain the issue in detail..."
               value={complaintText}
               onChange={(e) => setComplaintText(e.target.value)}
@@ -257,7 +257,7 @@ export default function Complaints() {
             </label>
             <input
               type="file"
-              className="block w-full p-3 bg-white border rounded-lg"
+              className="customer-input block w-full p-3 bg-white border rounded-lg"
               onChange={(e) => setImage(e.target.files[0])}
               ref={fileInputRef}
             />
@@ -268,7 +268,7 @@ export default function Complaints() {
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="mt-8 bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-70 disabled:cursor-not-allowed"
+            className="customer-button mt-8 bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">
@@ -288,7 +288,7 @@ export default function Complaints() {
         </div>
 
         {/* COMPLAINT HISTORY */}
-        <div className="bg-white shadow rounded-xl p-6 overflow-x-auto">
+        <div className="customer-card bg-white shadow rounded-xl p-6 overflow-x-auto">
           <h2 className="text-xl font-bold text-primary mb-4">
             Complaint History
           </h2>

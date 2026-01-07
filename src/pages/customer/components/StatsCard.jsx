@@ -1,6 +1,6 @@
 export default function StatsCard({ title, value, icon, isLoading = false }) {
   return (
-    <div className="bg-white shadow rounded-xl p-4 sm:p-6 flex items-center space-x-3 sm:space-x-4">
+    <div className="customer-card customer-card-elevate rounded-xl p-4 sm:p-6 flex items-center space-x-3 sm:space-x-4 bg-white">
       <div className="text-3xl sm:text-4xl">{icon}</div>
 
       <div>

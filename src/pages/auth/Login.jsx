@@ -1,6 +1,7 @@
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { toastSuccess, toastError } from "../../utils/toast";
+import AuthBackground from "../../components/auth/AuthBackground";
 const API_URL = import.meta.env.VITE_API_URL;
 export default function Login() {
   const navigate = useNavigate();
@@ -54,43 +55,48 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-light p-6">
-      <div className="bg-white shadow-xl rounded-xl p-10 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-primary mb-2">{title}</h1>
-        <p className="text-gray-500 mb-6">
-          Enter your credentials to continue.
-        </p>
+    <div className="min-h-screen relative isolate flex items-center justify-center overflow-hidden bg-light p-6">
+      <AuthBackground />
+      <div className="relative z-10 auth-card bg-white shadow-xl rounded-xl p-10 w-full max-w-md">
+        <div className="auth-stack">
+          <h1 className="text-3xl font-bold tracking-tight text-primary mb-2">
+            {title}
+          </h1>
+          <p className="text-gray-500 mb-6">
+            Enter your credentials to continue.
+          </p>
 
-        <input
-          type="email"
-          placeholder="Email"
-          name="email"
-          className="w-full mb-4 px-4 py-3 border rounded-lg focus:border-primary"
-          onChange={handleChange}
-        />
+          <input
+            type="email"
+            placeholder="Email"
+            name="email"
+            className="w-full mb-4 px-4 py-3 border rounded-lg transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:shadow-md"
+            onChange={handleChange}
+          />
 
-        <input
-          type="password"
-          placeholder="Password"
-          name="password"
-          className="w-full mb-4 px-4 py-3 border rounded-lg focus:border-primary"
-          onChange={handleChange}
-        />
+          <input
+            type="password"
+            placeholder="Password"
+            name="password"
+            className="w-full mb-4 px-4 py-3 border rounded-lg transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:shadow-md"
+            onChange={handleChange}
+          />
 
-        <button
-          onClick={handleLogin}
-          className="w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-        >
-          {!loading ? (
-            <p>Login</p>
-          ) : (
-            <span className="loading loading-spinner loading-lg"></span>
-          )}
-        </button>
+          <button
+            onClick={handleLogin}
+            className="w-full py-3 bg-primary text-white rounded-lg font-semibold transition hover:bg-blue-700 hover:shadow-lg active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2"
+          >
+            {!loading ? (
+              <p>Login</p>
+            ) : (
+              <span className="loading loading-spinner loading-lg"></span>
+            )}
+          </button>
 
-        <p className="text-center text-sm text-primary font-medium mt-3 cursor-pointer">
-          <span onClick={handleForgotPassword}>Forgot password?</span>
-        </p>
+          <p className="text-center text-sm text-primary font-medium mt-3 cursor-pointer transition hover:opacity-80">
+            <span onClick={handleForgotPassword}>Forgot password?</span>
+          </p>
+        </div>
       </div>
     </div>
   );

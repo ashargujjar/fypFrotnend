@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { toastSuccess, toastError } from "../../utils/toast";
+import AuthBackground from "../../components/auth/AuthBackground";
 const API_URL = import.meta.env.VITE_API_URL;
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -101,59 +102,62 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-light p-6">
-      <div className="bg-white shadow-xl rounded-xl p-10 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-primary mb-2">
-          Forgot Password
-        </h1>
-        <p className="text-gray-500 mb-6">
-          Tell us the email linked to your account and we will send you a one
-          time password to continue.
-        </p>
+    <div className="min-h-screen relative isolate flex items-center justify-center overflow-hidden bg-light p-6">
+      <AuthBackground />
+      <div className="relative z-10 auth-card bg-white shadow-xl rounded-xl p-10 w-full max-w-md">
+        <div className="auth-stack">
+          <h1 className="text-3xl font-bold tracking-tight text-primary mb-2">
+            Forgot Password
+          </h1>
+          <p className="text-gray-500 mb-6">
+            Tell us the email linked to your account and we will send you a one
+            time password to continue.
+          </p>
 
-        <input
-          type="email"
-          placeholder="Account Email"
-          className="w-full mb-4 px-4 py-3 border rounded-lg focus:border-primary"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        {isOtpSent && (
           <input
-            type="text"
-            placeholder="Enter OTP"
-            className="w-full mb-4 px-4 py-3 border rounded-lg focus:border-primary"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
+            type="email"
+            placeholder="Account Email"
+            className="w-full mb-4 px-4 py-3 border rounded-lg transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:shadow-md"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
-        )}
 
-        {feedback && <p className="text-sm text-red-600 mb-4">{feedback}</p>}
+          {isOtpSent && (
+            <input
+              type="text"
+              placeholder="Enter OTP"
+              className="w-full mb-4 px-4 py-3 border rounded-lg transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:shadow-md"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+            />
+          )}
 
-        <button
-          onClick={handleAction}
-          className="w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-        >
-          {isOtpSent ? (
-            !loading ? (
-              "Verify OTP"
+          {feedback && <p className="text-sm text-red-600 mb-4">{feedback}</p>}
+
+          <button
+            onClick={handleAction}
+            className="w-full py-3 bg-primary text-white rounded-lg font-semibold transition hover:bg-blue-700 hover:shadow-lg active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2"
+          >
+            {isOtpSent ? (
+              !loading ? (
+                "Verify OTP"
+              ) : (
+                <span className="loading loading-spinner loading-lg"></span>
+              )
+            ) : !loading ? (
+              "Send OTP"
             ) : (
               <span className="loading loading-spinner loading-lg"></span>
-            )
-          ) : !loading ? (
-            "Send OTP"
-          ) : (
-            <span className="loading loading-spinner loading-lg"></span>
-          )}
-        </button>
+            )}
+          </button>
 
-        <p
-          className="text-center text-sm text-primary font-medium mt-3 cursor-pointer"
-          onClick={() => navigate(returnTo)}
-        >
-          Back to Login
-        </p>
+          <p
+            className="text-center text-sm text-primary font-medium mt-3 cursor-pointer transition hover:opacity-80"
+            onClick={() => navigate(returnTo)}
+          >
+            Back to Login
+          </p>
+        </div>
       </div>
     </div>
   );

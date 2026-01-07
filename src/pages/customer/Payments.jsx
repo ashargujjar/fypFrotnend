@@ -121,14 +121,14 @@ export default function Payments() {
   };
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen bg-light customer-page">
       <Topbar />
 
-      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
         <h1 className="text-2xl font-bold text-primary mb-6">Payments</h1>
 
         {/* COD Wallet Summary */}
-        <div className="bg-white shadow rounded-xl p-5 mb-6 space-y-4">
+        <div className="customer-card bg-white shadow rounded-xl p-5 mb-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-wide">
@@ -140,13 +140,13 @@ export default function Payments() {
             </div>
             <div className="flex gap-2 flex-wrap">
               <button
-                className="border border-primary text-primary px-4 py-2 rounded-lg hover:bg-blue-50"
+                className="customer-button border border-primary text-primary px-4 py-2 rounded-lg hover:bg-blue-50"
                 onClick={() => setShowTopUp((v) => !v)}
               >
                 {showTopUp ? "Hide Add Balance" : "Add Balance"}
               </button>
               <button
-                className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                className="customer-button bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                 onClick={() => setShowWithdraw((v) => !v)}
               >
                 {showWithdraw ? "Hide Withdraw" : "Withdraw to Bank"}
@@ -166,7 +166,7 @@ export default function Payments() {
             ].map((item) => (
               <div
                 key={item.label}
-                className="border border-gray-100 rounded-xl p-4 bg-gray-50"
+                className="customer-card border border-gray-100 rounded-xl p-4 bg-gray-50"
               >
                 <p className="text-xs text-gray-500">{item.label}</p>
                 <p
@@ -191,7 +191,7 @@ export default function Payments() {
                     value={topUpAmount}
                     onChange={(e) => setTopUpAmount(e.target.value)}
                     placeholder="e.g. 2000"
-                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="customer-input border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </label>
                 <div className="flex flex-col justify-center text-sm text-gray-700">
@@ -201,7 +201,7 @@ export default function Payments() {
                   </p>
                 </div>
                 <div className="flex items-end">
-                  <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex-1">
+                  <button className="customer-button bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex-1">
                     Add Balance
                   </button>
                 </div>
@@ -217,7 +217,7 @@ export default function Payments() {
                   <select
                     value={selectedAccount}
                     onChange={(e) => setSelectedAccount(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="customer-input border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     {bankAccounts.map((acct) => (
                       <option key={acct.id} value={acct.id}>
@@ -235,11 +235,11 @@ export default function Payments() {
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
                     placeholder={`Max ${walletBalance}`}
-                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="customer-input border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </label>
                 <div className="flex items-end gap-2">
-                  <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex-1">
+                  <button className="customer-button bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex-1">
                     Confirm Withdrawal
                   </button>
                   <span className="text-xs text-gray-500">
@@ -259,7 +259,7 @@ export default function Payments() {
         </div>
 
         {/* Recent COD Collections */}
-        <div className="bg-white shadow rounded-xl p-5 mb-6">
+        <div className="customer-card bg-white shadow rounded-xl p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-wide">

@@ -194,10 +194,10 @@ export default function ShipmentDetails() {
   }, [shipment?.id]);
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen bg-light customer-page">
       <Topbar />
 
-      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
         {/* TOP BAR: SHIPMENT SELECTOR */}
         <div className="flex flex-col gap-4 mb-4 md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-gray-500">
@@ -208,7 +208,7 @@ export default function ShipmentDetails() {
             <select
               value={shipment?.id ?? ""}
               onChange={handleSelectShipment}
-              className="px-4 py-3 rounded-lg bg-white border outline-none focus:border-primary"
+              className="customer-input px-4 py-3 rounded-lg bg-white border outline-none focus:border-primary"
             >
               <option value="" disabled>
                 Select shipment
@@ -227,7 +227,7 @@ export default function ShipmentDetails() {
         </h1>
 
           {!shipment ? (
-            <div className="bg-white p-6 rounded-xl shadow text-gray-600">
+            <div className="customer-card bg-white p-6 rounded-xl shadow text-gray-600">
               Pick a shipment from the dropdown above to load route,
               temperature, shock & alert data.
             </div>
@@ -237,7 +237,7 @@ export default function ShipmentDetails() {
               {/* FULL WIDTH MAP SECTION        */}
               {/* ============================= */}
               {/* FULL-WIDTH MAP + SENSOR SUMMARY */}
-              <div className="bg-white p-6 shadow rounded-2xl mb-10">
+              <div className="customer-card bg-white p-6 shadow rounded-2xl mb-10">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-xl font-bold text-primary">
                     Live Location & Sensor Data
@@ -348,7 +348,7 @@ export default function ShipmentDetails() {
               {/* ============================= */}
               {/* SHIPMENT INFORMATION          */}
               {/* ============================= */}
-              <div className="bg-white p-6 shadow rounded-xl mb-10">
+              <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
                 <h2 className="text-xl font-bold text-primary mb-4">
                   Shipment Information
                 </h2>
@@ -389,7 +389,7 @@ export default function ShipmentDetails() {
               {/* ============================= */}
               {/* TIMELINE                      */}
               {/* ============================= */}
-              <div className="bg-white p-6 shadow rounded-xl mb-10">
+              <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
                 <h2 className="text-xl font-bold text-primary mb-4">
                   Shipment Timeline
                 </h2>
@@ -410,7 +410,7 @@ export default function ShipmentDetails() {
               {/* ============================= */}
               {/* BLOCKCHAIN                    */}
               {/* ============================= */}
-              <div className="bg-white p-6 shadow rounded-xl mb-10">
+              <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
                 <h2 className="text-xl font-bold text-primary mb-4">
                   Blockchain Verification
                 </h2>
@@ -449,7 +449,7 @@ export default function ShipmentDetails() {
               {/* ============================= */}
               {/* ALERTS                        */}
               {/* ============================= */}
-              <div className="bg-white p-6 shadow rounded-xl mb-10">
+              <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
                 <h2 className="text-xl font-bold text-red-500 mb-4">
                   Active Alerts
                 </h2>

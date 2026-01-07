@@ -35,15 +35,15 @@ export default function Alerts() {
   };
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen bg-light customer-page">
       <Topbar />
 
-      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
         <h1 className="text-2xl font-bold text-primary mb-6">
           Alerts Center
         </h1>
 
-          <div className="bg-white p-6 shadow rounded-xl space-y-4">
+          <div className="customer-card bg-white p-6 shadow rounded-xl space-y-4">
             {alerts.map((a) => (
               <div
                 key={a.id}

@@ -79,10 +79,10 @@ export default function MyShipments() {
   }, [token]);
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen bg-light customer-page">
       <Topbar />
 
-      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
         <h1 className="text-2xl font-bold text-primary mb-6">My Shipments</h1>
 
           {/* Search + Filters */}
@@ -93,11 +93,11 @@ export default function MyShipments() {
               placeholder="Search shipment ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="px-4 py-3 rounded-lg bg-white border w-full md:w-1/3 outline-none focus:border-primary"
+              className="customer-input px-4 py-3 rounded-lg bg-white border w-full md:w-1/3 outline-none focus:border-primary"
             />
 
             {/* Status Filter */}
-            <select className="px-4 py-3 rounded-lg bg-white border outline-none focus:border-primary">
+            <select className="customer-input px-4 py-3 rounded-lg bg-white border outline-none focus:border-primary">
               <option>Status: All</option>
               <option>In Transit</option>
               <option>Delivered</option>
@@ -106,7 +106,7 @@ export default function MyShipments() {
 
             {/* Sorting */}
             <select
-              className="px-4 py-3 rounded-lg bg-white border outline-none focus:border-primary"
+              className="customer-input px-4 py-3 rounded-lg bg-white border outline-none focus:border-primary"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
@@ -118,7 +118,7 @@ export default function MyShipments() {
           </div>
 
           {/* Shipments Table */}
-          <div className="bg-white shadow rounded-xl p-6 overflow-x-auto">
+          <div className="customer-card bg-white shadow rounded-xl p-6 overflow-x-auto">
             {isLoading ? (
               <div className="flex items-center gap-3 text-sm text-gray-500">
                 <span className="loading loading-spinner loading-sm" />
@@ -185,16 +185,16 @@ export default function MyShipments() {
 
           {/* Pagination */}
           <div className="flex justify-end mt-6 space-x-2">
-            <button className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-100">
+            <button className="customer-button px-4 py-2 bg-white border rounded-lg hover:bg-gray-100">
               Prev
             </button>
-            <button className="px-4 py-2 bg-primary text-white rounded-lg">
+            <button className="customer-button px-4 py-2 bg-primary text-white rounded-lg">
               1
             </button>
-            <button className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-100">
+            <button className="customer-button px-4 py-2 bg-white border rounded-lg hover:bg-gray-100">
               2
             </button>
-            <button className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-100">
+            <button className="customer-button px-4 py-2 bg-white border rounded-lg hover:bg-gray-100">
               Next
             </button>
           </div>

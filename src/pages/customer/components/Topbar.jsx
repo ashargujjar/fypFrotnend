@@ -13,7 +13,7 @@ export default function Topbar() {
   };
 
   return (
-    <div className="w-full bg-white shadow-md py-4 px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="customer-topbar w-full bg-white shadow-md py-4 px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div className="flex flex-col">
         <span className="text-lg font-bold text-primary">ShipSmart</span>
         <span className="text-sm text-gray-500">Customer Dashboard</span>
@@ -23,7 +23,7 @@ export default function Topbar() {
         {!onDashboard && (
           <Link
             to="/customer/dashboard"
-            className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary/30 rounded-full hover:bg-primary hover:text-white transition"
+            className="customer-button px-3 py-1.5 text-sm font-semibold text-primary border border-primary/30 rounded-full hover:bg-primary hover:text-white transition"
           >
             Back to Dashboard
           </Link>
@@ -31,14 +31,14 @@ export default function Topbar() {
         <button
           type="button"
           onClick={() => navigate("/customer/profile")}
-          className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary/30 rounded-full hover:bg-primary hover:text-white transition"
+          className="customer-button px-3 py-1.5 text-sm font-semibold text-primary border border-primary/30 rounded-full hover:bg-primary hover:text-white transition"
         >
           Profile
         </button>
         <button
           type="button"
           onClick={handleLogout}
-          className="px-3 py-1.5 text-sm font-semibold text-white bg-primary rounded-full hover:bg-blue-700 transition"
+          className="customer-button px-3 py-1.5 text-sm font-semibold text-white bg-primary rounded-full hover:bg-blue-700 transition"
         >
           Logout
         </button>

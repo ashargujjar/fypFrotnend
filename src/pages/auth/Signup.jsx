@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { toastSuccess, toastError } from "../../utils/toast";
+import AuthBackground from "../../components/auth/AuthBackground";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -44,65 +45,68 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-light p-6">
-      <div className="bg-white shadow-xl rounded-xl p-10 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-primary mb-2">
-          Customer Signup
-        </h1>
-        <p className="text-gray-500 mb-6">Create your customer account.</p>
+    <div className="min-h-screen relative isolate flex items-center justify-center overflow-hidden bg-light p-6">
+      <AuthBackground />
+      <div className="relative z-10 auth-card bg-white shadow-xl rounded-xl p-10 w-full max-w-md">
+        <div className="auth-stack">
+          <h1 className="text-3xl font-bold tracking-tight text-primary mb-2">
+            Customer Signup
+          </h1>
+          <p className="text-gray-500 mb-6">Create your customer account.</p>
 
-        <input
-          type="text"
-          name="name"
-          placeholder="Your Name"
-          className="w-full mb-4 px-4 py-3 border rounded-lg"
-          onChange={update}
-        />
+          <input
+            type="text"
+            name="name"
+            placeholder="Your Name"
+            className="w-full mb-4 px-4 py-3 border rounded-lg transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:shadow-md"
+            onChange={update}
+          />
 
-        <input
-          type="email"
-          name="email"
-          placeholder="Business Email"
-          className="w-full mb-4 px-4 py-3 border rounded-lg"
-          onChange={update}
-        />
+          <input
+            type="email"
+            name="email"
+            placeholder="Business Email"
+            className="w-full mb-4 px-4 py-3 border rounded-lg transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:shadow-md"
+            onChange={update}
+          />
 
-        <input
-          type="tel"
-          name="phone"
-          placeholder="Phone Number"
-          className="w-full mb-4 px-4 py-3 border rounded-lg"
-          onChange={update}
-        />
+          <input
+            type="tel"
+            name="phone"
+            placeholder="Phone Number"
+            className="w-full mb-4 px-4 py-3 border rounded-lg transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:shadow-md"
+            onChange={update}
+          />
 
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          className="w-full mb-4 px-4 py-3 border rounded-lg"
-          onChange={update}
-        />
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            className="w-full mb-4 px-4 py-3 border rounded-lg transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:shadow-md"
+            onChange={update}
+          />
 
-        <button
-          onClick={handleSignup}
-          className="w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-        >
-          {isLoading ? (
-            <span className="loading loading-spinner loading-lg"></span>
-          ) : (
-            "Create Account"
-          )}
-        </button>
-
-        <p className="text-gray-600 text-sm mt-4 text-center">
-          Already have an account?{" "}
-          <span
-            onClick={() => navigate("/login?role=partner")}
-            className="text-primary font-semibold cursor-pointer"
+          <button
+            onClick={handleSignup}
+            className="w-full py-3 bg-primary text-white rounded-lg font-semibold transition hover:bg-blue-700 hover:shadow-lg active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2"
           >
-            Login
-          </span>
-        </p>
+            {isLoading ? (
+              <span className="loading loading-spinner loading-lg"></span>
+            ) : (
+              "Create Account"
+            )}
+          </button>
+
+          <p className="text-gray-600 text-sm mt-4 text-center">
+            Already have an account?{" "}
+            <span
+              onClick={() => navigate("/login?role=partner")}
+              className="text-primary font-semibold cursor-pointer transition hover:opacity-80"
+            >
+              Login
+            </span>
+          </p>
+        </div>
       </div>
     </div>
   );

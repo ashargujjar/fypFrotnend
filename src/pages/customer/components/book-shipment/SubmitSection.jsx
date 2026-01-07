@@ -7,7 +7,7 @@ export default function SubmitSection({ isSubmitting = false }) {
       </p>
       <button
         type="submit"
-        className="bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+        className="customer-button bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
         disabled={isSubmitting}
       >
         {isSubmitting ? (

@@ -44,25 +44,25 @@ export default function TrackShipment() {
           : "text-gray-600";
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen bg-light customer-page">
       <Topbar />
 
-      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
         <h1 className="text-2xl font-bold text-primary mb-6">
           Track Shipment
         </h1>
 
-          <div className="bg-white p-6 rounded-xl shadow-md flex flex-col md:flex-row items-center gap-4">
+          <div className="customer-card bg-white p-6 rounded-xl shadow-md flex flex-col md:flex-row items-center gap-4">
             <input
               type="text"
               placeholder="Enter Shipment ID..."
-              className="flex-1 px-4 py-3 rounded-lg border outline-none focus:border-primary"
+              className="customer-input flex-1 px-4 py-3 rounded-lg border outline-none focus:border-primary"
               value={trackingId}
               onChange={(e) => setTrackingId(e.target.value)}
             />
             <button
               onClick={handleTrack}
-              className="bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              className="customer-button bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
             >
               Track
             </button>
@@ -73,8 +73,8 @@ export default function TrackShipment() {
           )}
 
           {shipment && (
-            <div className="mt-10 space-y-10">
-              <div className="bg-white p-8 rounded-xl shadow">
+            <div className="customer-stack mt-10 space-y-10">
+              <div className="customer-card bg-white p-8 rounded-xl shadow">
                 <h2 className="text-xl font-bold text-primary mb-4">
                   Shipment Overview
                 </h2>
@@ -111,7 +111,7 @@ export default function TrackShipment() {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-xl shadow">
+              <div className="customer-card bg-white p-6 rounded-xl shadow">
                 <h2 className="text-xl font-bold text-primary mb-4">
                   Live Location
                 </h2>
@@ -121,7 +121,7 @@ export default function TrackShipment() {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-xl shadow">
+              <div className="customer-card bg-white p-6 rounded-xl shadow">
                 <h2 className="text-xl font-bold text-primary mb-4">
                   Shipment Timeline
                 </h2>
@@ -141,7 +141,7 @@ export default function TrackShipment() {
                 </ul>
               </div>
 
-              <div className="bg-white p-6 rounded-xl shadow">
+              <div className="customer-card bg-white p-6 rounded-xl shadow">
                 <h2 className="text-xl font-bold text-primary mb-4">
                   IoT Alerts
                 </h2>

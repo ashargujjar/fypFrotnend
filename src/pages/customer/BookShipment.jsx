@@ -9,7 +9,7 @@ import { toastError, toastSuccess } from "../../utils/toast";
 const API_URL = import.meta.env.VITE_API_URL;
 const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString()}`;
 const inputClass =
-  "p-3 border rounded-lg outline-none focus:border-primary border-gray-300";
+  "customer-input p-3 border rounded-lg outline-none focus:border-primary border-gray-300";
 
 export default function BookShipment() {
   const [codAmount, setCodAmount] = useState(0);
@@ -217,16 +217,16 @@ export default function BookShipment() {
     }
   };
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen bg-light customer-page">
       <Topbar />
 
-      <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
         <h1 className="text-2xl font-bold text-primary mb-6">
           Book a New Shipment
         </h1>
 
         <form
-          className="bg-white shadow rounded-xl p-8 space-y-10"
+          className="customer-card customer-card-soft customer-stack bg-white shadow rounded-xl p-8 space-y-10"
           onSubmit={handleSubmit}
         >
           <SenderInfo

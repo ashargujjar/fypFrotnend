@@ -32,6 +32,7 @@ import AdminDashboardHome from "./pages/admin/AdminDashboardHome";
 import Assignments from "./pages/admin/Assignments";
 import RoleSelect from "./pages/auth/RoleSelect";
 import AddRider from "./pages/admin/AddRider";
+import AdminComplaints from "./pages/admin/AdminComplaints";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -91,6 +92,7 @@ function App() {
         <Route path="/admin/iot" element={<IoTCenter />} />
         <Route path="/admin/profile" element={<AdminProfile />} />
         <Route path="/admin/riders/add" element={<AddRider />} />
+        <Route path="/admin/complaints" element={<AdminComplaints />} />
       </Routes>
     </BrowserRouter>
   );

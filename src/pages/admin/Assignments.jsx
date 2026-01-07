@@ -1,5 +1,4 @@
-import { useState } from "react";
-import AdminSidebar from "./components/AdminSidebar";
+import { useRef, useState } from "react";
 import AdminTopbar from "./components/AdminTopbar";
 
 export default function Assignments() {
@@ -50,6 +49,7 @@ export default function Assignments() {
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [routeFilter, setRouteFilter] = useState("all");
   const [sortBy, setSortBy] = useState("assigned-first");
+  const assignedSectionRef = useRef(null);
 
   const getCity = (value) => (value || "").split(" - ")[0].trim();
   const isIntercity = (order) => {
@@ -60,12 +60,13 @@ export default function Assignments() {
   };
 
   const unassignedCount = orders.filter((o) => !o.rider).length;
-  const assignedToday = orders.filter((o) => o.rider).length;
+  const assignedCount = orders.filter((o) => o.rider).length;
   const intercityCount = orders.filter((order) => isIntercity(order)).length;
   const intracityCount = orders.length - intercityCount;
 
   const filteredOrders = orders.filter((order) => {
     const assigned = !!order.rider;
+    if (assigned) return false;
     if (assignmentFilter === "assigned" && !assigned) return false;
     if (assignmentFilter === "unassigned" && assigned) return false;
     if (routeFilter === "intracity" && isIntercity(order)) return false;
@@ -86,6 +87,8 @@ export default function Assignments() {
     return 0;
   });
 
+  const assignedOrders = orders.filter((order) => order.rider);
+
   const handleAssign = (orderId) => {
     const rider = selectedRiders[orderId];
     if (!rider) return;
@@ -101,95 +104,100 @@ export default function Assignments() {
       delete next[orderId];
       return next;
     });
+
+    requestAnimationFrame(() => {
+      assignedSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   };
 
   return (
-    <div className="flex">
-      <AdminSidebar />
-      <div className="flex-1 bg-light min-h-screen">
-        <AdminTopbar />
+    <div className="min-h-screen bg-light customer-page">
+      <AdminTopbar />
 
-        <div className="p-8 space-y-6">
-          <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-primary">Assignment Management</h1>
+            <p className="text-gray-600">
+              Track unassigned orders and dispatch the nearest rider.
+            </p>
+          </div>
+          <div className="customer-card bg-white shadow px-5 py-3 rounded-xl border text-center">
+            <p className="text-sm text-gray-500">Unassigned Orders</p>
+            <p className="text-3xl font-bold text-primary">{unassignedCount}</p>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-4">
+          <OverviewCard
+            label="Ready To Dispatch"
+            value={unassignedCount}
+            accent="text-red-600 bg-red-50"
+          />
+          <OverviewCard
+            label="Linehaul / Hub Transfer"
+            value={intercityCount}
+            accent="text-amber-600 bg-amber-50"
+          />
+          <OverviewCard
+            label="In-City Assignments"
+            value={intracityCount}
+            accent="text-blue-600 bg-blue-50"
+          />
+        </div>
+
+        <div className="customer-card bg-white p-6 rounded-xl shadow overflow-x-auto">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-primary">Assignment Management</h1>
-              <p className="text-gray-600">
-                Track unassigned orders and dispatch the nearest rider.
+              <h2 className="text-xl font-semibold text-primary">Assignment Queue</h2>
+              <p className="text-sm text-gray-500">
+                Linehaul / Hub Transfer = Intercity routes.
               </p>
             </div>
-            <div className="bg-white shadow px-5 py-3 rounded-xl border text-center">
-              <p className="text-sm text-gray-500">Unassigned Orders</p>
-              <p className="text-3xl font-bold text-primary">{unassignedCount}</p>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <p className="text-sm text-gray-600">
+                Choose a rider and click Assign to dispatch.
+              </p>
+              <div className="bg-white border rounded-full shadow px-2 py-1">
+                <select
+                  value={assignmentFilter}
+                  onChange={(e) => setAssignmentFilter(e.target.value)}
+                  className="bg-transparent text-sm focus:outline-none"
+                >
+                  <option value="all">All</option>
+                  <option value="assigned">Assigned</option>
+                  <option value="unassigned">Unassigned</option>
+                </select>
+              </div>
+              <div className="bg-white border rounded-full shadow px-2 py-1">
+                <select
+                  value={routeFilter}
+                  onChange={(e) => setRouteFilter(e.target.value)}
+                  className="bg-transparent text-sm focus:outline-none"
+                >
+                  <option value="all">All Routes</option>
+                  <option value="intracity">In-city</option>
+                  <option value="intercity">Intercity / Linehaul</option>
+                </select>
+              </div>
+              <div className="bg-white border rounded-full shadow px-2 py-1">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="bg-transparent text-sm focus:outline-none"
+                >
+                  <option value="assigned-first">Assigned First</option>
+                  <option value="unassigned-first">Unassigned First</option>
+                  <option value="order">Order ID</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
-            <OverviewCard
-              label="Ready To Dispatch"
-              value={unassignedCount}
-              accent="text-red-600 bg-red-50"
-            />
-            <OverviewCard
-              label="Linehaul / Hub Transfer"
-              value={intercityCount}
-              accent="text-amber-600 bg-amber-50"
-            />
-            <OverviewCard
-              label="In-City Assignments"
-              value={intracityCount}
-              accent="text-blue-600 bg-blue-50"
-            />
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow overflow-x-auto">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
-              <div>
-                <h2 className="text-xl font-semibold text-primary">Assignment Queue</h2>
-                <p className="text-sm text-gray-500">
-                  Linehaul / Hub Transfer = Intercity routes.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <p className="text-sm text-gray-600">
-                  Choose a rider and click Assign to dispatch.
-                </p>
-                <div className="bg-white border rounded-full shadow px-2 py-1">
-                  <select
-                    value={assignmentFilter}
-                    onChange={(e) => setAssignmentFilter(e.target.value)}
-                    className="bg-transparent text-sm focus:outline-none"
-                  >
-                    <option value="all">All</option>
-                    <option value="assigned">Assigned</option>
-                    <option value="unassigned">Unassigned</option>
-                  </select>
-                </div>
-                <div className="bg-white border rounded-full shadow px-2 py-1">
-                  <select
-                    value={routeFilter}
-                    onChange={(e) => setRouteFilter(e.target.value)}
-                    className="bg-transparent text-sm focus:outline-none"
-                  >
-                    <option value="all">All Routes</option>
-                    <option value="intracity">In-city</option>
-                    <option value="intercity">Intercity / Linehaul</option>
-                  </select>
-                </div>
-                <div className="bg-white border rounded-full shadow px-2 py-1">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="bg-transparent text-sm focus:outline-none"
-                  >
-                    <option value="assigned-first">Assigned First</option>
-                    <option value="unassigned-first">Unassigned First</option>
-                    <option value="order">Order ID</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <table className="w-full text-left min-w-[820px]">
+          <table className="w-full text-left min-w-[820px]">
               <thead>
                 <tr className="bg-gray-50 border-b text-gray-600 text-sm">
                   <th className="p-3 font-semibold">Order ID</th>
@@ -249,7 +257,7 @@ export default function Assignments() {
                         </select>
                         <button
                           onClick={() => handleAssign(order.id)}
-                          className="bg-primary text-white px-3 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="customer-button bg-primary text-white px-3 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           disabled={!selectedRiders[order.id]}
                         >
                           Assign
@@ -273,6 +281,66 @@ export default function Assignments() {
               </tbody>
             </table>
           </div>
+
+        <div
+          ref={assignedSectionRef}
+          className="customer-card bg-white p-6 rounded-xl shadow overflow-x-auto"
+        >
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-primary">Assigned Orders</h2>
+              <p className="text-sm text-gray-500">
+                Orders with riders assigned and ready to dispatch.
+              </p>
+            </div>
+            <div className="bg-white border rounded-full shadow px-3 py-1 text-sm text-gray-600">
+              Total Assigned: {assignedCount}
+            </div>
+          </div>
+
+          <table className="w-full text-left min-w-[780px]">
+              <thead>
+                <tr className="bg-gray-50 border-b text-gray-600 text-sm">
+                  <th className="p-3 font-semibold">Order ID</th>
+                  <th className="p-3 font-semibold">Customer</th>
+                  <th className="p-3 font-semibold">Route</th>
+                  <th className="p-3 font-semibold">Route Type</th>
+                  <th className="p-3 font-semibold">Rider</th>
+                  <th className="p-3 font-semibold">Time Window</th>
+                </tr>
+              </thead>
+              <tbody>
+                {assignedOrders.map((order) => (
+                  <tr key={order.id} className="border-b hover:bg-gray-50">
+                    <td className="p-3 font-semibold">{order.id}</td>
+                    <td className="p-3">{order.customer}</td>
+                    <td className="p-3 text-sm text-gray-700">
+                      {order.pickup} -> {order.dropoff}
+                    </td>
+                    <td className="p-3 text-sm">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs ${
+                          isIntercity(order)
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-emerald-50 text-emerald-700"
+                        }`}
+                      >
+                        {isIntercity(order) ? "Linehaul / Hub Transfer" : "In-city"}
+                      </span>
+                    </td>
+                    <td className="p-3">{order.rider}</td>
+                    <td className="p-3 text-sm text-gray-700">{order.window}</td>
+                  </tr>
+                ))}
+                {assignedOrders.length === 0 && (
+                  <tr>
+                    <td className="p-6 text-center text-gray-500" colSpan={6}>
+                      No assigned orders yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
         </div>
       </div>
     </div>
@@ -281,7 +349,7 @@ export default function Assignments() {
 
 function OverviewCard({ label, value, accent }) {
   return (
-    <div className="bg-white rounded-xl shadow p-5 flex items-center justify-between">
+    <div className="customer-card customer-card-elevate bg-white rounded-xl shadow p-5 flex items-center justify-between">
       <div>
         <p className="text-sm text-gray-500">{label}</p>
         <p className={`text-2xl font-bold ${accent}`}>{value}</p>

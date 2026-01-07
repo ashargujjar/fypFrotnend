@@ -1,51 +1,50 @@
-import AdminSidebar from "./components/AdminSidebar";
 import AdminTopbar from "./components/AdminTopbar";
 
 export default function AdminProfile() {
   return (
-    <div className="flex">
-      <AdminSidebar />
+    <div className="min-h-screen bg-light customer-page">
+      <AdminTopbar />
 
-      <div className="flex-1 bg-light min-h-screen">
-        <AdminTopbar />
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+        <h1 className="text-2xl font-bold text-primary mb-6">
+          Profile Settings
+        </h1>
 
-        <div className="p-8">
-          <h1 className="text-2xl font-bold text-primary mb-6">
-            Admin Profile
-          </h1>
+        <div className="customer-card customer-card-soft bg-white p-8 md:p-10 rounded-2xl shadow-xl w-full">
+          <h2 className="text-xl font-semibold text-primary mb-4">
+            Personal Information
+          </h2>
 
-          <div className="bg-white p-6 rounded-xl shadow space-y-6">
-            <div className="flex items-center gap-4">
-              <img
-                src="https://randomuser.me/api/portraits/men/37.jpg"
-                className="w-20 h-20 rounded-full border"
+          <div className="mt-6 grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="text-gray-700 font-medium">Full Name</label>
+              <input
+                defaultValue="Admin User"
+                className="w-full mt-1 px-4 py-3 border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
               />
-              <div>
-                <h2 className="text-xl font-bold">Admin User</h2>
-                <p className="text-gray-600">admin@example.com</p>
-              </div>
             </div>
 
             <div>
-              <label className="font-semibold">Phone</label>
+              <label className="text-gray-700 font-medium">Email</label>
+              <input
+                type="email"
+                defaultValue="admin@example.com"
+                className="w-full mt-1 px-4 py-3 border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+
+            <div>
+              <label className="text-gray-700 font-medium">Phone Number</label>
               <input
                 defaultValue="+92 300 1234567"
-                className="w-full px-4 py-3 border rounded-lg outline-none mt-2"
+                className="w-full mt-1 px-4 py-3 border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
               />
             </div>
-
-            <div>
-              <label className="font-semibold">Password</label>
-              <input
-                type="password"
-                className="w-full px-4 py-3 border rounded-lg outline-none mt-2"
-              />
-            </div>
-
-            <button className="w-full bg-primary text-white py-3 rounded-lg font-semibold">
-              Save Changes
-            </button>
           </div>
+
+          <button className="customer-button mt-8 bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+            Save Changes
+          </button>
         </div>
       </div>
     </div>

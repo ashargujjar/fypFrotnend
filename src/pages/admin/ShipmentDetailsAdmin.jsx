@@ -1,13 +1,12 @@
 import { useParams } from "react-router-dom";
 import { useState } from "react";
-import AdminSidebar from "./components/AdminSidebar";
 import AdminTopbar from "./components/AdminTopbar";
 
 export default function ShipmentDetailsAdmin() {
   const { id } = useParams();
 
   // Dummy shipment data
-  const [shipment, setShipment] = useState({
+  const [shipment] = useState({
     id: id,
     partner: "TechCart Pvt Ltd",
     rider: "Not Assigned",
@@ -16,7 +15,7 @@ export default function ShipmentDetailsAdmin() {
     status: "At Origin Warehouse",
     weight: "2.5kg",
     type: "Electronics",
-    temperature: { current: 14, unit: "°C" },
+    temperature: { current: 14, unit: "C" },
     shock: { level: "Low", note: "Normal movement" },
     humidity: 40,
     timeline: [
@@ -35,42 +34,42 @@ export default function ShipmentDetailsAdmin() {
     { event: "Arrived Warehouse", hash: "0xCC4...991", block: 123476 },
   ];
 
-  const riders = [
-    { id: "R-001", name: "Ali Raza" },
-    { id: "R-002", name: "Umar Farooq" },
-    { id: "R-003", name: "Bilal Ahmed" },
-  ];
-
-  const [showModal, setShowModal] = useState(false);
-  const [selectedRider, setSelectedRider] = useState("");
-
-  const assignRider = () => {
-    if (!selectedRider) return;
-
-    setShipment((prev) => ({
-      ...prev,
-      rider: selectedRider,
-      status: "Assigned to Rider",
-    }));
-
-    setShowModal(false);
+  const riderDirectory = {
+    "Ali Raza": {
+      id: "R-001",
+      phone: "+92 300 1234567",
+      city: "Lahore",
+      zone: "Central",
+    },
+    "Umar Farooq": {
+      id: "R-002",
+      phone: "+92 301 2223344",
+      city: "Karachi",
+      zone: "South",
+    },
+    "Bilal Ahmed": {
+      id: "R-003",
+      phone: "+92 302 9876543",
+      city: "Islamabad",
+      zone: "North",
+    },
   };
+  const riderAssigned =
+    shipment.rider && shipment.rider.toLowerCase() !== "not assigned";
+  const riderDetails = riderAssigned ? riderDirectory[shipment.rider] : null;
 
   return (
-    <div className="flex">
-      <AdminSidebar />
+    <div className="min-h-screen bg-light customer-page">
+      <AdminTopbar />
 
-      <div className="flex-1 bg-light min-h-screen">
-        <AdminTopbar />
-
-        <div className="p-8">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
           {/* TITLE */}
           <h1 className="text-2xl font-bold text-primary mb-6">
-            Shipment Details — {shipment.id}
+            Shipment Details - {shipment.id}
           </h1>
 
           {/* MAP SECTION */}
-          <div className="bg-white p-6 shadow rounded-xl mb-10">
+          <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
             <h2 className="text-xl font-bold text-primary mb-4">
               Live Map & Sensor Data
             </h2>
@@ -102,7 +101,7 @@ export default function ShipmentDetailsAdmin() {
           </div>
 
           {/* SHIPMENT INFO */}
-          <div className="bg-white p-6 shadow rounded-xl mb-10">
+          <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
             <h2 className="text-xl font-bold text-primary mb-4">
               Shipment Information
             </h2>
@@ -112,7 +111,8 @@ export default function ShipmentDetailsAdmin() {
                 <strong>Partner:</strong> {shipment.partner}
               </p>
               <p>
-                <strong>Assigned Rider:</strong> {shipment.rider}
+                <strong>Assigned Rider:</strong>{" "}
+                {riderAssigned ? shipment.rider : "No rider assigned"}
               </p>
               <p>
                 <strong>Status:</strong> {shipment.status}
@@ -131,16 +131,39 @@ export default function ShipmentDetailsAdmin() {
               </p>
             </div>
 
-            <button
-              onClick={() => setShowModal(true)}
-              className="mt-6 bg-primary text-white px-6 py-3 rounded-lg"
-            >
-              Assign / Reassign Rider
-            </button>
+          </div>
+
+          {/* RIDER INFO */}
+          <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
+            <h2 className="text-xl font-bold text-primary mb-4">
+              Rider Information
+            </h2>
+
+            {!riderAssigned ? (
+              <p className="text-gray-500">No rider assigned.</p>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6 text-gray-700">
+                <p>
+                  <strong>Name:</strong> {shipment.rider}
+                </p>
+                <p>
+                  <strong>Rider ID:</strong> {riderDetails?.id || "N/A"}
+                </p>
+                <p>
+                  <strong>Phone:</strong> {riderDetails?.phone || "N/A"}
+                </p>
+                <p>
+                  <strong>City:</strong> {riderDetails?.city || "N/A"}
+                </p>
+                <p>
+                  <strong>Zone:</strong> {riderDetails?.zone || "N/A"}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* TIMELINE */}
-          <div className="bg-white p-6 shadow rounded-xl mb-10">
+          <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
             <h2 className="text-xl font-bold text-primary mb-4">Timeline</h2>
 
             <ul className="space-y-4">
@@ -154,7 +177,7 @@ export default function ShipmentDetailsAdmin() {
           </div>
 
           {/* BLOCKCHAIN LOGS */}
-          <div className="bg-white p-6 shadow rounded-xl mb-8">
+          <div className="customer-card bg-white p-6 shadow rounded-xl mb-8">
             <h2 className="text-xl font-bold text-primary mb-4">
               Blockchain Verification
             </h2>
@@ -180,46 +203,6 @@ export default function ShipmentDetailsAdmin() {
             </table>
           </div>
 
-          {/* ASSIGN MODAL */}
-          {showModal && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl shadow-xl w-[400px] p-6">
-                <h2 className="text-xl font-bold text-primary mb-4">
-                  Assign Rider — {shipment.id}
-                </h2>
-
-                <select
-                  value={selectedRider}
-                  onChange={(e) => setSelectedRider(e.target.value)}
-                  className="w-full px-4 py-3 border rounded-lg focus:border-primary outline-none"
-                >
-                  <option value="">Select Rider</option>
-                  {riders.map((r) => (
-                    <option key={r.id} value={r.name}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="px-4 py-2 bg-gray-200 rounded-lg"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    onClick={assignRider}
-                    className="px-4 py-2 bg-primary text-white rounded-lg"
-                  >
-                    Assign
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

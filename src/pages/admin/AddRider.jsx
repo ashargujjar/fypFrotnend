@@ -1,4 +1,3 @@
-import AdminSidebar from "./components/AdminSidebar";
 import AdminTopbar from "./components/AdminTopbar";
 import { useState } from "react";
 
@@ -22,7 +21,7 @@ export default function AddRider() {
     console.log(form);
   };
 
-  // Pre-defined city → zone list (you can add more later)
+  // Pre-defined city + zone list (you can add more later)
   const zones = {
     Islamabad: [
       "Jinnah Garden Zone",
@@ -46,24 +45,22 @@ export default function AddRider() {
   };
 
   return (
-    <div className="flex">
-      <AdminSidebar />
+    <div className="min-h-screen bg-light customer-page">
+      <AdminTopbar />
 
-      <div className="flex-1 bg-light min-h-screen">
-        <AdminTopbar />
-
-        <div className="p-8 max-w-xl mx-auto">
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+        <div className="max-w-xl mx-auto w-full">
           <h1 className="text-2xl font-bold text-primary mb-6">
             Add New Rider
           </h1>
 
-          <div className="bg-white p-6 rounded-xl shadow space-y-6">
+          <div className="customer-card bg-white p-6 rounded-xl shadow space-y-6">
             {/* Rider Name */}
             <input
               type="text"
               name="name"
               placeholder="Rider Name"
-              className="w-full px-4 py-3 border rounded-lg"
+              className="w-full px-4 py-3 border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
               onChange={update}
             />
 
@@ -72,7 +69,7 @@ export default function AddRider() {
               type="text"
               name="phone"
               placeholder="Phone Number"
-              className="w-full px-4 py-3 border rounded-lg"
+              className="w-full px-4 py-3 border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
               onChange={update}
             />
 
@@ -81,7 +78,7 @@ export default function AddRider() {
               type="email"
               name="email"
               placeholder="Email"
-              className="w-full px-4 py-3 border rounded-lg"
+              className="w-full px-4 py-3 border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
               onChange={update}
             />
 
@@ -90,14 +87,14 @@ export default function AddRider() {
               type="password"
               name="password"
               placeholder="Password"
-              className="w-full px-4 py-3 border rounded-lg"
+              className="w-full px-4 py-3 border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
               onChange={update}
             />
 
             {/* Assigned City */}
             <select
               name="assignedCity"
-              className="w-full px-4 py-3 border rounded-lg"
+              className="w-full px-4 py-3 border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
               value={form.assignedCity}
               onChange={update}
             >
@@ -110,7 +107,7 @@ export default function AddRider() {
             {/* Rider Category */}
             <select
               name="riderCategory"
-              className="w-full px-4 py-3 border rounded-lg"
+              className="w-full px-4 py-3 border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
               value={form.riderCategory}
               onChange={update}
             >
@@ -124,7 +121,7 @@ export default function AddRider() {
             {form.riderCategory !== "linehaul" && form.assignedCity && (
               <select
                 name="assignedZone"
-                className="w-full px-4 py-3 border rounded-lg"
+                className="w-full px-4 py-3 border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
                 value={form.assignedZone}
                 onChange={update}
               >
@@ -140,7 +137,7 @@ export default function AddRider() {
             {/* Submit Button */}
             <button
               onClick={handleCreate}
-              className="w-full bg-primary text-white py-3 rounded-lg hover:bg-blue-700 transition"
+              className="customer-button w-full bg-primary text-white py-3 rounded-lg hover:bg-blue-700 transition"
             >
               Create Rider Account
             </button>

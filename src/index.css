@@ -224,7 +224,8 @@ body {
 
 .customer-page {
   position: relative;
-  overflow-x: hidden;
+  /* Clip animated backgrounds so they don't create extra scrollbars. */
+  overflow: hidden;
   isolation: isolate;
   background:
     radial-gradient(45% 35% at 12% 12%, rgba(255, 214, 170, 0.45), transparent 70%),

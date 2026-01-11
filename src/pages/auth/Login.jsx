@@ -53,6 +53,9 @@ export default function Login() {
       state: { returnTo: currentLoginPath, role },
     });
   };
+  const handleVerifyEmail = () => {
+    navigate("/verifyEmail");
+  };
 
   return (
     <div className="min-h-screen relative isolate flex items-center justify-center overflow-hidden bg-light p-6">
@@ -96,6 +99,11 @@ export default function Login() {
           <p className="text-center text-sm text-primary font-medium mt-3 cursor-pointer transition hover:opacity-80">
             <span onClick={handleForgotPassword}>Forgot password?</span>
           </p>
+          {role === "customer" ? (
+            <p className="text-center text-sm text-primary font-medium mt-2 cursor-pointer transition hover:opacity-80">
+              <span onClick={handleVerifyEmail}>Verify email</span>
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

@@ -3,8 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/public/Home";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
+import AdminSignup from "./pages/auth/AdminSignup";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
+import VerifyEmail from "./pages/auth/VerifyEmail";
 import DashboardHome from "./pages/customer/DashboardHome";
 import MyShipments from "./pages/customer/MyShipments";
 import ShipmentDetails from "./pages/customer/ShipmentDetails";
@@ -55,8 +57,10 @@ function App() {
         <Route path="/role" element={<RoleSelect />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/admin/signup" element={<AdminSignup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verifyEmail" element={<VerifyEmail />} />
         <Route path="/customer" element={<DashboardHome />} />
         <Route path="/customer/dashboard" element={<DashboardHome />} />
         <Route path="/customer/shipments" element={<MyShipments />} />

@@ -1,5 +1,9 @@
 import AdminTopbar from "./components/AdminTopbar";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { toastError, toastSuccess } from "../../utils/toast";
+import { useNavigate } from "react-router-dom";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function AddRider() {
   const [form, setForm] = useState({
@@ -11,38 +15,90 @@ export default function AddRider() {
     riderCategory: "",
     assignedZone: "",
   });
-
+  const [cityZones, setCityZones] = useState({});
+  const [zonesError, setZonesError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const token = localStorage.getItem("token");
+  const navigate = useNavigate();
   const update = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === "assignedCity") {
+        next.assignedZone = "";
+      }
+      if (name === "riderCategory" && value === "linehaul") {
+        next.assignedZone = "";
+      }
+      return next;
+    });
   };
 
-  const handleCreate = () => {
-    alert("Rider Created (Mock). Link this to backend later.");
-    console.log(form);
+  const handleCreate = async () => {
+    if (!token) {
+      toastError("Missing admin token.");
+      return;
+    }
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const endpoint = API_URL
+        ? `${API_URL}/rider/addRider`
+        : "/rider/addRider";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "Unable to create rider.");
+      }
+      toastSuccess(data?.message || "Rider created.");
+      navigate("/admin/riders");
+    } catch (error) {
+      toastError(error?.message || "Unable to create rider.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Pre-defined city + zone list (you can add more later)
-  const zones = {
-    Islamabad: [
-      "Jinnah Garden Zone",
-      "G-10 North Zone",
-      "Bahria Town Zone",
-      "DHA Phase 2 Zone",
-      "Blue Area Central Zone",
-    ],
-    Lahore: [
-      "Johar Town Zone",
-      "Gulberg Zone",
-      "Shahdara Zone",
-      "Model Town Zone",
-    ],
-    Karachi: [
-      "Clifton Zone",
-      "Gulshan Zone",
-      "Saddar Zone",
-      "North Nazimabad Zone",
-    ],
-  };
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadZones = async () => {
+      try {
+        setZonesError("");
+        const endpoint = API_URL ? `${API_URL}/user/zones` : "/user/zones";
+        const response = await fetch(endpoint);
+        if (!response.ok) {
+          throw new Error("Failed to load zones");
+        }
+        const data = await response.json();
+        const zonesList = Array.isArray(data?.zones) ? data.zones : [];
+        const nextZones = zonesList.reduce((acc, item) => {
+          if (item?.active && item?.city && Array.isArray(item?.zones)) {
+            acc[item.city] = item.zones;
+          }
+          return acc;
+        }, {});
+
+        if (isMounted) setCityZones(nextZones);
+      } catch (error) {
+        if (isMounted) setZonesError("Unable to load city zones.");
+      }
+    };
+
+    loadZones();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const cityOptions = useMemo(() => Object.keys(cityZones).sort(), [cityZones]);
 
   return (
     <div className="min-h-screen bg-light customer-page">
@@ -99,10 +155,15 @@ export default function AddRider() {
               onChange={update}
             >
               <option value="">Select City</option>
-              <option value="Islamabad">Islamabad</option>
-              <option value="Lahore">Lahore</option>
-              <option value="Karachi">Karachi</option>
+              {cityOptions.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
             </select>
+            {zonesError ? (
+              <p className="text-sm text-red-600">{zonesError}</p>
+            ) : null}
 
             {/* Rider Category */}
             <select
@@ -126,7 +187,7 @@ export default function AddRider() {
                 onChange={update}
               >
                 <option value="">Select Zone</option>
-                {zones[form.assignedCity]?.map((zone) => (
+                {(cityZones[form.assignedCity] || []).map((zone) => (
                   <option key={zone} value={zone}>
                     {zone}
                   </option>
@@ -137,9 +198,10 @@ export default function AddRider() {
             {/* Submit Button */}
             <button
               onClick={handleCreate}
-              className="customer-button w-full bg-primary text-white py-3 rounded-lg hover:bg-blue-700 transition"
+              disabled={isSubmitting}
+              className="customer-button w-full bg-primary text-white py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Create Rider Account
+              {isSubmitting ? "Creating..." : "Create Rider Account"}
             </button>
           </div>
         </div>

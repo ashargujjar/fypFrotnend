@@ -1,0 +1,8 @@
+Pickup rider PickupTasks.jsx: Assigned → On the Way → Arrived at Pickup → Pickup Completed → Dropped at Origin Hub (task removed); IoT local status Device attached.
+Linehaul rider LinehaulTasks.jsx: Assigned → On Route → Reached Destination Hub (trip removed).
+Delivery rider DeliveryTasks.jsx: Assigned → Out for Delivery → Arrived → Collecting PIN → PIN Verified → Delivered; IoT detach Pending detach → Device detached.
+Admin eligibility/assignment gating assignmentUtils.js: Pickup eligible pending|pickup; Linehaul dropped at warehouse|droped at warehouse|linehaul; Delivery dropped at warehouse|droped at warehouse|delivery|out for delivery|delivered (+ intercity destination hub|arrived at destination); assigned tokens per stage pickup rider assigned|linehaul rider assigned|delivery rider assigned.
+Notes
+
+Rider pages currently update status in local state only; they don’t push to backend.
+If you want rider updates like Dropped at Origin Hub or Reached Destination Hub to unlock the next admin stage, add those strings to STAGE_STATUS_RULES in assignmentUtils.js.

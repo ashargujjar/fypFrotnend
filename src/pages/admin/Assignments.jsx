@@ -1,116 +1,251 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AdminTopbar from "./components/AdminTopbar";
+import AssignedShipments from "./components/assignments/AssignedShipments";
+import AssignmentQueue from "./components/assignments/AssignmentQueue";
+import AssignmentsHeader from "./components/assignments/AssignmentsHeader";
+import OverviewSection from "./components/assignments/OverviewSection";
+import { toastError, toastSuccess } from "../../utils/toast";
+import {
+  getStageLabel,
+  isAssigned,
+  isIntercity,
+  isStageEligible,
+  setRiderForStage,
+} from "./components/assignments/assignmentUtils";
+const API_URL = import.meta.env.VITE_API_URL;
+
+const normalizeCategory = (value) => {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized.includes("linehaul")) return "linehaul";
+  if (normalized.includes("pickup")) return "pickup";
+  if (normalized.includes("delivery")) return "delivery";
+  return normalized;
+};
+
+const normalizeRiders = (list) =>
+  list.map((item, index) => ({
+    id: item?._id || item?.riderId || `R-${String(index + 1).padStart(3, "0")}`,
+    name: item?.name || item?.fullName || item?.username || "Unknown",
+    city: item?.assignedCity || item?.city || "-",
+    zone: item?.assignedZone || item?.zone || "",
+    category: normalizeCategory(
+      item?.riderCategory || item?.category || item?.type || "",
+    ),
+  }));
 
 export default function Assignments() {
-  const initialOrders = [
-    {
-      id: "ORD-4821",
-      customer: "GreenMart",
-      pickup: "Lahore - Warehouse 3",
-      dropoff: "Islamabad - F8",
-      window: "Today, 2-5 PM",
-      rider: "",
-    },
-    {
-      id: "ORD-4832",
-      customer: "MegaMart",
-      pickup: "Karachi - Port",
-      dropoff: "Hyderabad - City Center",
-      window: "Today, 4-7 PM",
-      rider: "",
-    },
-    {
-      id: "ORD-4840",
-      customer: "PharmaPlus",
-      pickup: "Lahore - Lab Hub",
-      dropoff: "Multan - Main Clinic",
-      window: "Tomorrow, 9-11 AM",
-      rider: "Ali Raza",
-    },
-    {
-      id: "ORD-4844",
-      customer: "FreshBasket",
-      pickup: "Rawalpindi - Cold Storage",
-      dropoff: "Islamabad - G7",
-      window: "Tomorrow, 12-2 PM",
-      rider: "",
-    },
-  ];
+  const [shipments, setShipments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [riders, setRiders] = useState([]);
+  useEffect(() => {
+    let isMounted = true;
 
-  const riders = [
-    { id: "R-001", name: "Ali Raza", zone: "Central" },
-    { id: "R-002", name: "Fatima Khan", zone: "North" },
-    { id: "R-003", name: "Umar Farooq", zone: "South" },
-    { id: "R-004", name: "Sara Imran", zone: "Central" },
-  ];
+    const fetchShipments = async () => {
+      try {
+        setIsLoading(true);
+        setLoadError("");
+        const response = await fetch(`${API_URL}/admin/allShipments`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        const data = await response.json();
+        console.log("Fetched shipments:", data.shipments || data);
+        if (!response.ok) {
+          throw new Error(data?.message || "Failed to fetch shipments.");
+        }
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.shipments)
+            ? data.shipments
+            : Array.isArray(data?.data)
+              ? data.data
+              : [];
+        if (isMounted) setShipments(list);
+      } catch (error) {
+        if (isMounted)
+          setLoadError(error?.message || "Failed to fetch shipments.");
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    const fetchRiders = async () => {
+      try {
+        const response = await fetch(`${API_URL}/rider/getRiders`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        const data = await response.json();
+        console.log("Fetched riders:", data.riders || data);
+        if (!response.ok) {
+          throw new Error(data?.message || "Failed to fetch riders.");
+        }
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.riders)
+            ? data.riders
+            : Array.isArray(data?.data)
+              ? data.data
+              : [];
+        if (isMounted) setRiders(normalizeRiders(list));
+      } catch (error) {
+        if (isMounted)
+          setLoadError(error?.message || "Failed to fetch riders.");
+      }
+    };
+    fetchRiders();
 
-  const [orders, setOrders] = useState(initialOrders);
+    fetchShipments();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const [selectedRiders, setSelectedRiders] = useState({});
+  const [assignmentStage, setAssignmentStage] = useState("pickup");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [routeFilter, setRouteFilter] = useState("all");
   const [sortBy, setSortBy] = useState("assigned-first");
   const assignedSectionRef = useRef(null);
+  const [assigningMap, setAssigningMap] = useState({});
 
-  const getCity = (value) => (value || "").split(" - ")[0].trim();
-  const isIntercity = (order) => {
-    const pickupCity = getCity(order.pickup);
-    const dropoffCity = getCity(order.dropoff);
-    if (!pickupCity || !dropoffCity) return false;
-    return pickupCity !== dropoffCity;
-  };
+  const stageLabel = getStageLabel(assignmentStage);
+  const stageShipments = shipments.filter((shipment) =>
+    isStageEligible(shipment, assignmentStage),
+  );
+  const unassignedCount = stageShipments.filter(
+    (shipment) => !isAssigned(shipment, assignmentStage),
+  ).length;
+  const assignedCount = stageShipments.filter((shipment) =>
+    isAssigned(shipment, assignmentStage),
+  ).length;
+  const intercityCount = shipments.filter((shipment) =>
+    isIntercity(shipment),
+  ).length;
+  const intracityCount = shipments.length - intercityCount;
 
-  const unassignedCount = orders.filter((o) => !o.rider).length;
-  const assignedCount = orders.filter((o) => o.rider).length;
-  const intercityCount = orders.filter((order) => isIntercity(order)).length;
-  const intracityCount = orders.length - intercityCount;
-
-  const filteredOrders = orders.filter((order) => {
-    const assigned = !!order.rider;
-    if (assigned) return false;
+  const filteredShipments = shipments.filter((shipment) => {
+    if (!isStageEligible(shipment, assignmentStage)) return false;
+    const assigned = isAssigned(shipment, assignmentStage);
+    if (assignmentFilter === "all" && assigned) return false;
     if (assignmentFilter === "assigned" && !assigned) return false;
     if (assignmentFilter === "unassigned" && assigned) return false;
-    if (routeFilter === "intracity" && isIntercity(order)) return false;
-    if (routeFilter === "intercity" && !isIntercity(order)) return false;
+    if (routeFilter === "intracity" && isIntercity(shipment)) return false;
+    if (routeFilter === "intercity" && !isIntercity(shipment)) return false;
     return true;
   });
 
-  const sortedOrders = filteredOrders.slice().sort((a, b) => {
+  const sortedShipments = filteredShipments.slice().sort((a, b) => {
     if (sortBy === "assigned-first") {
-      return Number(!!b.rider) - Number(!!a.rider);
+      return (
+        Number(isAssigned(b, assignmentStage)) -
+        Number(isAssigned(a, assignmentStage))
+      );
     }
     if (sortBy === "unassigned-first") {
-      return Number(!!a.rider) - Number(!!b.rider);
+      return (
+        Number(isAssigned(a, assignmentStage)) -
+        Number(isAssigned(b, assignmentStage))
+      );
     }
     if (sortBy === "order") {
-      return a.id.localeCompare(b.id);
+      return String(a?._id || "").localeCompare(String(b?._id || ""));
     }
     return 0;
   });
 
-  const assignedOrders = orders.filter((order) => order.rider);
+  const assignedShipments = shipments.filter(
+    (shipment) =>
+      isStageEligible(shipment, assignmentStage) &&
+      isAssigned(shipment, assignmentStage),
+  );
 
-  const handleAssign = (orderId) => {
-    const rider = selectedRiders[orderId];
-    if (!rider) return;
+  const handleSelectRider = (shipmentId, stage, riderName) => {
+    setSelectedRiders((prev) => ({
+      ...prev,
+      [shipmentId]: {
+        ...(prev[shipmentId] || {}),
+        [stage]: riderName,
+      },
+    }));
+  };
 
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.id === orderId ? { ...order, rider, status: "Assigned" } : order
-      )
-    );
+  const handleAssign = async (shipmentId, stage) => {
+    const riderName = selectedRiders[shipmentId]?.[stage];
+    if (!riderName) return;
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toastError("Missing admin token.");
+      return;
+    }
+    const assignKey = `${shipmentId}:${stage}`;
+    if (assigningMap[assignKey]) return;
+    setAssigningMap((prev) => ({ ...prev, [assignKey]: true }));
 
-    setSelectedRiders((prev) => {
-      const next = { ...prev };
-      delete next[orderId];
-      return next;
-    });
-
-    requestAnimationFrame(() => {
-      assignedSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
+    try {
+      const endpoint = API_URL
+        ? `${API_URL}/admin/assignRider`
+        : "/admin/assignRider";
+      const rider = riders.find((item) => item?.name === riderName);
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          shipmentId,
+          riderId: rider?.id,
+        }),
       });
-    });
+      const data = await response.json().catch(() => ({}));
+      console.log(data);
+      if (!response.ok || data?.success === false) {
+        throw new Error(data?.message || data.error);
+      }
+
+      toastSuccess(data?.message || "Rider assigned.");
+      setShipments((prev) =>
+        prev.map((shipment) => {
+          if (shipment._id !== shipmentId) return shipment;
+          const updated = setRiderForStage(shipment, stage, riderName);
+          return { ...updated, status: "assigned" };
+        }),
+      );
+
+      setSelectedRiders((prev) => {
+        const next = { ...prev };
+        const entry = { ...(next[shipmentId] || {}) };
+        delete entry[stage];
+        if (Object.keys(entry).length) {
+          next[shipmentId] = entry;
+        } else {
+          delete next[shipmentId];
+        }
+        return next;
+      });
+
+      requestAnimationFrame(() => {
+        assignedSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    } catch (error) {
+      toastError(error?.message || "Unable to assign rider.");
+    } finally {
+      setAssigningMap((prev) => {
+        const next = { ...prev };
+        delete next[assignKey];
+        return next;
+      });
+    }
   };
 
   return (
@@ -118,244 +253,48 @@ export default function Assignments() {
       <AdminTopbar />
 
       <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-primary">Assignment Management</h1>
-            <p className="text-gray-600">
-              Track unassigned orders and dispatch the nearest rider.
-            </p>
-          </div>
-          <div className="customer-card bg-white shadow px-5 py-3 rounded-xl border text-center">
-            <p className="text-sm text-gray-500">Unassigned Orders</p>
-            <p className="text-3xl font-bold text-primary">{unassignedCount}</p>
-          </div>
-        </div>
+        <AssignmentsHeader
+          isLoading={isLoading}
+          unassignedCount={unassignedCount}
+          assignmentStage={assignmentStage}
+        />
 
-        <div className="grid md:grid-cols-3 gap-4">
-          <OverviewCard
-            label="Ready To Dispatch"
-            value={unassignedCount}
-            accent="text-red-600 bg-red-50"
-          />
-          <OverviewCard
-            label="Linehaul / Hub Transfer"
-            value={intercityCount}
-            accent="text-amber-600 bg-amber-50"
-          />
-          <OverviewCard
-            label="In-City Assignments"
-            value={intracityCount}
-            accent="text-blue-600 bg-blue-50"
-          />
-        </div>
+        <OverviewSection
+          isLoading={isLoading}
+          unassignedCount={unassignedCount}
+          intercityCount={intercityCount}
+          intracityCount={intracityCount}
+          stageLabel={stageLabel}
+        />
 
-        <div className="customer-card bg-white p-6 rounded-xl shadow overflow-x-auto">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-xl font-semibold text-primary">Assignment Queue</h2>
-              <p className="text-sm text-gray-500">
-                Linehaul / Hub Transfer = Intercity routes.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <p className="text-sm text-gray-600">
-                Choose a rider and click Assign to dispatch.
-              </p>
-              <div className="bg-white border rounded-full shadow px-2 py-1">
-                <select
-                  value={assignmentFilter}
-                  onChange={(e) => setAssignmentFilter(e.target.value)}
-                  className="bg-transparent text-sm focus:outline-none"
-                >
-                  <option value="all">All</option>
-                  <option value="assigned">Assigned</option>
-                  <option value="unassigned">Unassigned</option>
-                </select>
-              </div>
-              <div className="bg-white border rounded-full shadow px-2 py-1">
-                <select
-                  value={routeFilter}
-                  onChange={(e) => setRouteFilter(e.target.value)}
-                  className="bg-transparent text-sm focus:outline-none"
-                >
-                  <option value="all">All Routes</option>
-                  <option value="intracity">In-city</option>
-                  <option value="intercity">Intercity / Linehaul</option>
-                </select>
-              </div>
-              <div className="bg-white border rounded-full shadow px-2 py-1">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="bg-transparent text-sm focus:outline-none"
-                >
-                  <option value="assigned-first">Assigned First</option>
-                  <option value="unassigned-first">Unassigned First</option>
-                  <option value="order">Order ID</option>
-                </select>
-              </div>
-            </div>
-          </div>
+        <AssignmentQueue
+          assignmentStage={assignmentStage}
+          assignmentFilter={assignmentFilter}
+          routeFilter={routeFilter}
+          sortBy={sortBy}
+          stageLabel={stageLabel}
+          onChangeAssignmentStage={setAssignmentStage}
+          onChangeAssignmentFilter={setAssignmentFilter}
+          onChangeRouteFilter={setRouteFilter}
+          onChangeSortBy={setSortBy}
+          shipments={sortedShipments}
+          isLoading={isLoading}
+          loadError={loadError}
+          riders={riders}
+          selectedRiders={selectedRiders}
+          assigningMap={assigningMap}
+          onSelectRider={handleSelectRider}
+          onAssign={handleAssign}
+        />
 
-          <table className="w-full text-left min-w-[820px]">
-              <thead>
-                <tr className="bg-gray-50 border-b text-gray-600 text-sm">
-                  <th className="p-3 font-semibold">Order ID</th>
-                  <th className="p-3 font-semibold">Customer</th>
-                  <th className="p-3 font-semibold">Pickup</th>
-                  <th className="p-3 font-semibold">Drop-off</th>
-                  <th className="p-3 font-semibold">Route Type</th>
-                  <th className="p-3 font-semibold">Time Window</th>
-                  <th className="p-3 font-semibold">Assign Rider</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedOrders.map((order) => (
-                  <tr key={order.id} className="border-b hover:bg-gray-50">
-                    <td className="p-3">
-                      <p className="font-semibold">{order.id}</p>
-                      <p className="text-xs text-gray-500">
-                        {order.rider ? "Assigned" : "Unassigned"}
-                      </p>
-                    </td>
-                    <td className="p-3">
-                      <p className="font-semibold">{order.customer}</p>
-                      <p className="text-xs text-gray-500">Standard</p>
-                    </td>
-                    <td className="p-3 text-sm text-gray-700">{order.pickup}</td>
-                    <td className="p-3 text-sm text-gray-700">{order.dropoff}</td>
-                    <td className="p-3 text-sm">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs ${
-                          isIntercity(order)
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-emerald-50 text-emerald-700"
-                        }`}
-                      >
-                        {isIntercity(order) ? "Linehaul / Hub Transfer" : "In-city"}
-                      </span>
-                    </td>
-                    <td className="p-3 text-sm text-gray-700">{order.window}</td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={selectedRiders[order.id] ?? order.rider ?? ""}
-                          onChange={(e) =>
-                            setSelectedRiders((prev) => ({
-                              ...prev,
-                              [order.id]: e.target.value,
-                            }))
-                          }
-                          className="border rounded-lg px-3 py-2 text-sm w-44"
-                        >
-                          <option value="">Select Rider</option>
-                          {riders.map((rider) => (
-                            <option key={rider.id} value={rider.name}>
-                              {rider.name} - {rider.zone}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleAssign(order.id)}
-                          className="customer-button bg-primary text-white px-3 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={!selectedRiders[order.id]}
-                        >
-                          Assign
-                        </button>
-                      </div>
-                      {order.rider && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Currently: {order.rider}
-                        </p>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {sortedOrders.length === 0 && (
-                  <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={7}>
-                      No orders match the current filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-        <div
-          ref={assignedSectionRef}
-          className="customer-card bg-white p-6 rounded-xl shadow overflow-x-auto"
-        >
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-xl font-semibold text-primary">Assigned Orders</h2>
-              <p className="text-sm text-gray-500">
-                Orders with riders assigned and ready to dispatch.
-              </p>
-            </div>
-            <div className="bg-white border rounded-full shadow px-3 py-1 text-sm text-gray-600">
-              Total Assigned: {assignedCount}
-            </div>
-          </div>
-
-          <table className="w-full text-left min-w-[780px]">
-              <thead>
-                <tr className="bg-gray-50 border-b text-gray-600 text-sm">
-                  <th className="p-3 font-semibold">Order ID</th>
-                  <th className="p-3 font-semibold">Customer</th>
-                  <th className="p-3 font-semibold">Route</th>
-                  <th className="p-3 font-semibold">Route Type</th>
-                  <th className="p-3 font-semibold">Rider</th>
-                  <th className="p-3 font-semibold">Time Window</th>
-                </tr>
-              </thead>
-              <tbody>
-                {assignedOrders.map((order) => (
-                  <tr key={order.id} className="border-b hover:bg-gray-50">
-                    <td className="p-3 font-semibold">{order.id}</td>
-                    <td className="p-3">{order.customer}</td>
-                    <td className="p-3 text-sm text-gray-700">
-                      {order.pickup} -> {order.dropoff}
-                    </td>
-                    <td className="p-3 text-sm">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs ${
-                          isIntercity(order)
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-emerald-50 text-emerald-700"
-                        }`}
-                      >
-                        {isIntercity(order) ? "Linehaul / Hub Transfer" : "In-city"}
-                      </span>
-                    </td>
-                    <td className="p-3">{order.rider}</td>
-                    <td className="p-3 text-sm text-gray-700">{order.window}</td>
-                  </tr>
-                ))}
-                {assignedOrders.length === 0 && (
-                  <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={6}>
-                      No assigned orders yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function OverviewCard({ label, value, accent }) {
-  return (
-    <div className="customer-card customer-card-elevate bg-white rounded-xl shadow p-5 flex items-center justify-between">
-      <div>
-        <p className="text-sm text-gray-500">{label}</p>
-        <p className={`text-2xl font-bold ${accent}`}>{value}</p>
-      </div>
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${accent}`}>
-        i
+        <AssignedShipments
+          sectionRef={assignedSectionRef}
+          assignedCount={assignedCount}
+          shipments={assignedShipments}
+          isLoading={isLoading}
+          loadError={loadError}
+          assignmentStage={assignmentStage}
+        />
       </div>
     </div>
   );

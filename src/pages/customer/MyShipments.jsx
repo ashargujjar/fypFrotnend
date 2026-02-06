@@ -1,5 +1,6 @@
 import Topbar from "./components/Topbar";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 const API_URL = import.meta.env.VITE_API_URL;
 
 export default function MyShipments() {
@@ -155,14 +156,23 @@ export default function MyShipments() {
                       const cmp = aStatus.localeCompare(bStatus);
                       return sortBy === "status_desc" ? -cmp : cmp;
                     })
-                    .map((s) => (
-                      <tr
-                        key={s.id || s._id}
-                        className="border-b hover:bg-gray-50"
-                      >
-                        <td className="p-3 font-semibold text-primary">
-                          {s.id || s._id}
-                        </td>
+                    .map((s) => {
+                      const shipmentId = s.id || s._id;
+                      const trackingId = String(shipmentId || "");
+
+                      return (
+                        <tr
+                          key={shipmentId}
+                          className="border-b hover:bg-gray-50"
+                        >
+                          <td className="p-3 font-semibold text-primary">
+                            <Link
+                              to={`/customer/shipments/${trackingId}`}
+                              className="hover:underline"
+                            >
+                              {trackingId}
+                            </Link>
+                          </td>
                         <td className="p-3">{formatDate(s.createdAt)}</td>
 
                         <td className="p-3">
@@ -175,9 +185,10 @@ export default function MyShipments() {
                           </span>
                         </td>
 
-                        <td className="p-3">{formatLocation(s)}</td>
-                      </tr>
-                    ))}
+                          <td className="p-3">{formatLocation(s)}</td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             )}
@@ -202,3 +213,4 @@ export default function MyShipments() {
     </div>
   );
 }
+

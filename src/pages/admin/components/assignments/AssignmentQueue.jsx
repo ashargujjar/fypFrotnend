@@ -34,14 +34,7 @@ export default function AssignmentQueue({
       ? stageKey
       : "";
   const assignLabel = stageLabel ? `${stageLabel} Rider` : "Rider";
-  const stageHeading =
-    stageKey === "pickup"
-      ? "Shipments to Pick Up"
-      : stageKey === "linehaul"
-        ? "Shipments for Linehaul Transfer"
-        : stageKey === "delivery"
-          ? "Shipments to Drop Off"
-          : "Assignment Queue";
+  const stageHeading = "Unassigned Shipments";
   const stageDescription =
     stageKey === "pickup"
       ? "Assign a pickup rider for customer collection."

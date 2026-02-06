@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AdminTopbar from "./components/AdminTopbar";
 import AssignedShipments from "./components/assignments/AssignedShipments";
 import AssignmentQueue from "./components/assignments/AssignmentQueue";
@@ -14,6 +14,16 @@ import {
 } from "./components/assignments/assignmentUtils";
 const API_URL = import.meta.env.VITE_API_URL;
 
+const normalizeId = (value) => {
+  if (!value) return "";
+  if (typeof value === "object") {
+    if (value.$oid) return String(value.$oid).trim();
+    if (value._id) return normalizeId(value._id);
+    if (value.id) return normalizeId(value.id);
+  }
+  return String(value).trim();
+};
+
 const normalizeCategory = (value) => {
   const normalized = String(value || "").toLowerCase();
   if (normalized.includes("linehaul")) return "linehaul";
@@ -24,10 +34,13 @@ const normalizeCategory = (value) => {
 
 const normalizeRiders = (list) =>
   list.map((item, index) => ({
-    id: item?._id || item?.riderId || `R-${String(index + 1).padStart(3, "0")}`,
+    id:
+      normalizeId(item?._id || item?.riderId || item?.id) ||
+      `R-${String(index + 1).padStart(3, "0")}`,
     name: item?.name || item?.fullName || item?.username || "Unknown",
     city: item?.assignedCity || item?.city || "-",
     zone: item?.assignedZone || item?.zone || "",
+    phone: item?.phone || item?.phoneNumber || "-",
     category: normalizeCategory(
       item?.riderCategory || item?.category || item?.type || "",
     ),
@@ -38,74 +51,108 @@ export default function Assignments() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [riders, setRiders] = useState([]);
-  useEffect(() => {
-    let isMounted = true;
+  const [riderTasks, setRiderTasks] = useState([]);
+  const isMountedRef = useRef(true);
 
-    const fetchShipments = async () => {
-      try {
-        setIsLoading(true);
-        setLoadError("");
-        const response = await fetch(`${API_URL}/admin/allShipments`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        const data = await response.json();
-        console.log("Fetched shipments:", data.shipments || data);
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to fetch shipments.");
-        }
-        const list = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.shipments)
-            ? data.shipments
-            : Array.isArray(data?.data)
-              ? data.data
-              : [];
-        if (isMounted) setShipments(list);
-      } catch (error) {
-        if (isMounted)
-          setLoadError(error?.message || "Failed to fetch shipments.");
-      } finally {
-        if (isMounted) setIsLoading(false);
+  const loadShipments = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setLoadError("");
+      const response = await fetch(`${API_URL}/admin/allShipments`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      const data = await response.json();
+      console.log("Fetched shipments:", data.shipments || data);
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to fetch shipments.");
       }
-    };
-    const fetchRiders = async () => {
-      try {
-        const response = await fetch(`${API_URL}/rider/getRiders`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        const data = await response.json();
-        console.log("Fetched riders:", data.riders || data);
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to fetch riders.");
-        }
-        const list = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.riders)
-            ? data.riders
-            : Array.isArray(data?.data)
-              ? data.data
-              : [];
-        if (isMounted) setRiders(normalizeRiders(list));
-      } catch (error) {
-        if (isMounted)
-          setLoadError(error?.message || "Failed to fetch riders.");
-      }
-    };
-    fetchRiders();
-
-    fetchShipments();
-    return () => {
-      isMounted = false;
-    };
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.shipments)
+          ? data.shipments
+          : Array.isArray(data?.data)
+            ? data.data
+            : [];
+      if (isMountedRef.current) setShipments(list);
+    } catch (error) {
+      if (isMountedRef.current)
+        setLoadError(error?.message || "Failed to fetch shipments.");
+    } finally {
+      if (isMountedRef.current) setIsLoading(false);
+    }
   }, []);
+
+  const loadRiders = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/rider/getRiders`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      const data = await response.json();
+      console.log("Fetched riders:", data.riders || data);
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to fetch riders.");
+      }
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.riders)
+          ? data.riders
+          : Array.isArray(data?.data)
+            ? data.data
+            : [];
+      if (isMountedRef.current) setRiders(normalizeRiders(list));
+    } catch (error) {
+      if (isMountedRef.current)
+        setLoadError(error?.message || "Failed to fetch riders.");
+    }
+  }, []);
+
+  const loadRiderTasks = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/rider/getRiderTasks`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      const data = await response.json();
+      console.log("Fetched rider tasks:", data.tasks || data);
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to fetch rider tasks.");
+      }
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.tasks)
+          ? data.tasks
+          : Array.isArray(data?.riderTasks)
+            ? data.riderTasks
+            : Array.isArray(data?.data)
+              ? data.data
+              : [];
+      if (isMountedRef.current) setRiderTasks(list);
+    } catch (error) {
+      if (isMountedRef.current)
+        setLoadError(error?.message || "Failed to fetch rider tasks.");
+    }
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    loadRiders();
+    loadShipments();
+    loadRiderTasks();
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [loadRiders, loadShipments, loadRiderTasks]);
 
   const [selectedRiders, setSelectedRiders] = useState({});
   const [assignmentStage, setAssignmentStage] = useState("pickup");
@@ -237,6 +284,9 @@ export default function Assignments() {
           block: "start",
         });
       });
+
+      await loadShipments();
+      await loadRiderTasks();
     } catch (error) {
       toastError(error?.message || "Unable to assign rider.");
     } finally {
@@ -291,6 +341,8 @@ export default function Assignments() {
           sectionRef={assignedSectionRef}
           assignedCount={assignedCount}
           shipments={assignedShipments}
+          riders={riders}
+          riderTasks={riderTasks}
           isLoading={isLoading}
           loadError={loadError}
           assignmentStage={assignmentStage}

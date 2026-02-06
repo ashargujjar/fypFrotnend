@@ -13,25 +13,10 @@ export default function Complaints() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
+  const [complaints, setComplaints] = useState([]);
   const fileInputRef = useRef(null);
-  const token = localStorage.getItem("token");
 
-  const complaintsHistory = [
-    {
-      id: "C-001",
-      shipmentId: "SS-1012",
-      issue: "Delay in delivery",
-      status: "Pending",
-      date: "2025-01-18",
-    },
-    {
-      id: "C-002",
-      shipmentId: "SS-1090",
-      issue: "Parcel damaged",
-      status: "Resolved",
-      date: "2025-01-15",
-    },
-  ];
+  const token = localStorage.getItem("token");
 
   const getStatusColor = (status) => {
     const normalized = String(status || "").toLowerCase();
@@ -51,13 +36,31 @@ export default function Complaints() {
     return `${id.slice(0, 6)}...${id.slice(-4)}`;
   };
   const selectedShipment = shipments.find(
-    (shipment) => getShipmentValue(shipment) === shipmentId
+    (shipment) => getShipmentValue(shipment) === shipmentId,
   );
   const selectedLabel = getShipmentLabel(selectedShipment);
 
   useEffect(() => {
     let isMounted = true;
-
+    const getComplaints = async () => {
+      try {
+        const res = await fetch(`${API_URL}/complaint/userComplaints`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          const compl = await res.json();
+          console.log(compl);
+          setComplaints(compl?.complaints ?? []);
+        } else {
+          const data = await res.json();
+          throw new Error(data?.message || "Unable to load complaints.");
+        }
+      } catch (error) {
+        setShipmentLoadError(error?.message || "Unable to load shipments.");
+      }
+    };
     const loadShipments = async () => {
       try {
         setShipmentLoadError("");
@@ -86,6 +89,7 @@ export default function Complaints() {
 
     if (token) {
       loadShipments();
+      getComplaints();
     } else {
       setShipmentLoadError("Missing auth token.");
       setIsLoadingShipments(false);
@@ -303,23 +307,33 @@ export default function Complaints() {
                 <th className="p-3">Date</th>
               </tr>
             </thead>
-
             <tbody>
-              {complaintsHistory.map((c) => (
-                <tr key={c.id} className="border-b hover:bg-gray-50 transition">
-                  <td className="p-3 font-semibold text-primary">{c.id}</td>
-                  <td className="p-3">{c.shipmentId}</td>
-                  <td className="p-3">{c.issue}</td>
-                  <td className="p-3">
-                    <span
-                      className={`px-3 py-1 rounded-lg text-sm font-semibold ${getStatusColor(c.status)}`}
-                    >
-                      {c.status}
-                    </span>
+              {complaints.length > 0 ? (
+                complaints.map((c) => (
+                  <tr
+                    key={c._id}
+                    className="border-b hover:bg-gray-50 transition"
+                  >
+                    <td className="p-3 font-semibold text-primary">{c.id}</td>
+                    <td className="p-3">{c.shipmentId}</td>
+                    <td className="p-3">{c.category}</td>
+                    <td className="p-3">
+                      <span
+                        className={`px-3 py-1 rounded-lg text-sm font-semibold ${getStatusColor(c.status)}`}
+                      >
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="p-3">{c.createdAt}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="p-4 text-center text-gray-500">
+                    No complaints found
                   </td>
-                  <td className="p-3">{c.date}</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

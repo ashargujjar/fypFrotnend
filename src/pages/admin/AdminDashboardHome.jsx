@@ -1,7 +1,17 @@
+import { useEffect, useState } from "react";
 import AdminTopbar from "./components/AdminTopbar";
 import { Link } from "react-router-dom";
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function AdminDashboardHome() {
+  const token = localStorage.getItem("token");
+
+  const [countDashboard, setCountDashboard] = useState({
+    totalUsers: 0,
+    totalShipments: 0,
+    activeShipments: 0,
+    deliveredShipments: 0,
+  });
   const quickActions = [
     {
       title: "Manage Shipments",
@@ -52,6 +62,24 @@ export default function AdminDashboardHome() {
       orbClass: "bg-slate-200/40",
     },
   ];
+  useEffect(() => {
+    const getCountDashboard = async () => {
+      const res = await fetch(`${API_URL}/admin/countDashboard`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const resp = await res.json();
+      console.log("resp", resp.dashboardCounts);
+      if (res.ok) {
+        setCountDashboard(resp.dashboardCounts);
+      } else {
+        console.log(resp.message);
+        console.log("error fetching the counts");
+      }
+    };
+    getCountDashboard();
+  }, []);
 
   return (
     <div className="min-h-screen bg-light customer-page">
@@ -63,16 +91,30 @@ export default function AdminDashboardHome() {
         </h1>
 
         <div className="customer-stack grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <StatCard title="Total Shipments" value="1240" icon="TS" />
-          <StatCard title="Active Shipments" value="89" icon="AS" />
-          <StatCard title="Delivered Today" value="57" icon="DT" />
-          <StatCard title="Customers" value="42" icon="C" />
+          <StatCard
+            title="Total Shipments"
+            value={countDashboard.totalShipments}
+            icon="TS"
+          />
+          <StatCard
+            title="Active Shipments"
+            value={countDashboard.activeShipments}
+            icon="AS"
+          />
+          <StatCard
+            title="Delivered Today"
+            value={countDashboard.deliveredShipments}
+            icon="DT"
+          />
+          <StatCard
+            title="Customers"
+            value={countDashboard.totalUsers}
+            icon="C"
+          />
         </div>
 
         <div className="mt-10">
-          <h2 className="text-xl font-bold text-primary mb-4">
-            Quick Actions
-          </h2>
+          <h2 className="text-xl font-bold text-primary mb-4">Quick Actions</h2>
           <div className="customer-stack grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {quickActions.map((action) => (
               <Link
@@ -91,9 +133,7 @@ export default function AdminDashboardHome() {
                 <p className="mt-4 text-lg font-semibold text-slate-900">
                   {action.title}
                 </p>
-                <p className="text-sm text-slate-500">
-                  {action.description}
-                </p>
+                <p className="text-sm text-slate-500">{action.description}</p>
               </Link>
             ))}
           </div>

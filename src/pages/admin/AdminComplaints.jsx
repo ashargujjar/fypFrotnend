@@ -1,45 +1,67 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AdminTopbar from "./components/AdminTopbar";
-
+const API_URL = import.meta.env.VITE_API_URL;
 export default function AdminComplaints() {
-  const [complaints, setComplaints] = useState([
-    {
-      id: "C-001",
-      customer: "Ayesha Khan",
-      shipmentId: "SS-1012",
-      category: "Delayed Delivery",
-      issue: "Package arrived 3 days late.",
-      status: "Pending",
-      date: "2025-01-18",
-    },
-    {
-      id: "C-002",
-      customer: "Hamza Ali",
-      shipmentId: "SS-1090",
-      category: "Damaged Parcel",
-      issue: "Box was crushed on delivery.",
-      status: "In Progress",
-      date: "2025-01-17",
-    },
-    {
-      id: "C-003",
-      customer: "Sara Iqbal",
-      shipmentId: "SS-1125",
-      category: "Rider Behavior",
-      issue: "Rider was unprofessional on call.",
-      status: "Resolved",
-      date: "2025-01-15",
-    },
-  ]);
+  const [complaints, setComplaints] = useState([]);
+  const [selectedStatuses, setSelectedStatuses] = useState({});
+  const token = localStorage.getItem("token");
 
-  const updateComplaintStatus = (id, status) => {
-    setComplaints((prev) =>
-      prev.map((complaint) =>
-        complaint.id === id ? { ...complaint, status } : complaint
-      )
-    );
+  useEffect(() => {
+    const fetchComplaints = async () => {
+      const res = await fetch(`${API_URL}/complaint/Allcomplaints`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const comp = await res.json();
+
+      if (res.ok) {
+        setComplaints(comp.complaints);
+        console.log(comp);
+      } else {
+        console.log("error fetching the");
+      }
+    };
+    fetchComplaints();
+  }, []);
+  const updateComplaintStatus = async (complaintId, newStatus) => {
+    console.log("Updating:", complaintId, newStatus);
+
+    try {
+      const res = await fetch(
+        `${API_URL}/complaint/updateStatus/${complaintId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: newStatus }),
+        },
+      );
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setComplaints((prev) =>
+          prev.map((c) =>
+            c._id === complaintId ? { ...c, status: newStatus } : c,
+          ),
+        );
+
+        // Clear selected value
+        setSelectedStatuses((prev) => {
+          const updated = { ...prev };
+          delete updated[complaintId];
+          return updated;
+        });
+      } else {
+        console.log("Update failed:", data.message);
+      }
+    } catch (err) {
+      console.log("Error:", err);
+    }
   };
-
   const getStatusColor = (status) => {
     if (status === "Resolved") return "bg-green-100 text-green-700";
     if (status === "In Progress") return "bg-blue-100 text-blue-700";
@@ -74,10 +96,8 @@ export default function AdminComplaints() {
             <thead>
               <tr className="border-b bg-gray-50 text-gray-600">
                 <th className="p-3">Complaint ID</th>
-                <th className="p-3">Customer</th>
                 <th className="p-3">Shipment</th>
                 <th className="p-3">Category</th>
-                <th className="p-3">Issue</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Date</th>
                 <th className="p-3">Action</th>
@@ -86,36 +106,36 @@ export default function AdminComplaints() {
             <tbody>
               {complaints.map((complaint) => (
                 <tr
-                  key={complaint.id}
+                  key={complaint._id}
                   className="border-b hover:bg-gray-50 transition"
                 >
                   <td className="p-3 font-semibold text-primary">
-                    {complaint.id}
+                    {complaint._id}
                   </td>
-                  <td className="p-3">{complaint.customer}</td>
                   <td className="p-3">{complaint.shipmentId}</td>
                   <td className="p-3">{complaint.category}</td>
-                  <td className="p-3">{complaint.issue}</td>
                   <td className="p-3">
                     <span
                       className={`px-3 py-1 rounded-lg text-sm font-semibold ${getStatusColor(
-                        complaint.status
+                        complaint.status,
                       )}`}
                     >
                       {complaint.status}
                     </span>
                   </td>
-                  <td className="p-3">{complaint.date}</td>
+                  <td className="p-3">{complaint.createdAt}</td>
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       <select
                         className="border rounded-lg px-2 py-1 text-sm outline-none focus:border-primary"
-                        value={complaint.status}
+                        value={
+                          selectedStatuses[complaint._id] || complaint.status
+                        }
                         onChange={(e) =>
-                          updateComplaintStatus(
-                            complaint.id,
-                            e.target.value
-                          )
+                          setSelectedStatuses((prev) => ({
+                            ...prev,
+                            [complaint._id]: e.target.value,
+                          }))
                         }
                       >
                         <option>Pending</option>
@@ -125,11 +145,14 @@ export default function AdminComplaints() {
                       <button
                         className="customer-button bg-primary text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-60"
                         onClick={() =>
-                          updateComplaintStatus(complaint.id, "Resolved")
+                          updateComplaintStatus(
+                            complaint._id,
+                            selectedStatuses[complaint._id] || complaint.status,
+                          )
                         }
                         disabled={complaint.status === "Resolved"}
                       >
-                        Resolve
+                        Update
                       </button>
                     </div>
                   </td>

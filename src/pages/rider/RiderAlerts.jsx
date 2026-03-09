@@ -1,5 +1,4 @@
-import RiderSidebar from "./components/RiderSidebar";
-import RiderTopbar from "./components/RiderTopbar";
+﻿import RiderTopbar from "./components/RiderTopbar";
 
 export default function RiderAlerts() {
   const alerts = [
@@ -33,50 +32,46 @@ export default function RiderAlerts() {
   ];
 
   return (
-    <div className="flex">
-      <RiderSidebar />
+    <div className="min-h-screen bg-light customer-page">
+      <RiderTopbar />
 
-      <div className="flex-1 bg-light min-h-screen">
-        <RiderTopbar />
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-primary">IoT Alerts</h1>
+            <p className="text-gray-600 text-sm">
+              Temperature and shock sensor breaches for assigned shipments.
+            </p>
+          </div>
+          <span className="customer-card bg-white px-3 py-1 rounded-full text-xs text-red-700">
+            {alerts.length} active alerts
+          </span>
+        </div>
 
-        <div className="p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">IoT Alerts</h1>
-              <p className="text-gray-600 text-sm">
-                Temperature and shock sensor breaches for assigned shipments.
-              </p>
+        <div className="customer-card bg-white p-6 rounded-xl shadow space-y-4">
+          {alerts.map((alert) => (
+            <div
+              key={alert.id}
+              className="border border-slate-100 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white/70"
+            >
+              <div>
+                <p className="text-xs text-gray-500">{alert.time}</p>
+                <p className="font-semibold text-slate-900">
+                  {alert.type} breach - Shipment {alert.shipmentId}
+                </p>
+                <p className="text-sm text-gray-600">{alert.message}</p>
+                <p className="text-xs text-gray-500">{alert.location}</p>
+              </div>
+              <span className="text-xs px-3 py-1 rounded-full bg-amber-50 text-amber-700">
+                {alert.severity} severity
+              </span>
             </div>
-            <span className="text-xs px-3 py-1 rounded-full bg-red-50 text-red-700">
-              {alerts.length} active alerts
-            </span>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow space-y-4">
-            {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className="p-4 border rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-              >
-                <div>
-                  <p className="text-xs text-gray-500">{alert.time}</p>
-                  <p className="font-semibold text-dark">
-                    {alert.type} breach · Shipment {alert.shipmentId}
-                  </p>
-                  <p className="text-sm text-gray-600">{alert.message}</p>
-                  <p className="text-xs text-gray-500">{alert.location}</p>
-                </div>
-                <span className="text-xs px-3 py-1 rounded-full bg-amber-50 text-amber-700">
-                  {alert.severity} severity
-                </span>
-              </div>
-            ))}
-            {alerts.length === 0 && (
-              <div className="p-4 border rounded-lg text-sm text-gray-500 text-center">
-                No IoT alerts right now.
-              </div>
-            )}
-          </div>
+          ))}
+          {alerts.length === 0 && (
+            <div className="border border-slate-100 rounded-lg p-4 text-sm text-gray-500 text-center">
+              No IoT alerts right now.
+            </div>
+          )}
         </div>
       </div>
     </div>

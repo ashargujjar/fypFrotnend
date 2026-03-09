@@ -1,38 +1,14 @@
 import { useParams } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminTopbar from "./components/AdminTopbar";
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function ShipmentDetailsAdmin() {
   const { id } = useParams();
-
-  // Dummy shipment data
-  const [shipment] = useState({
-    id: id,
-    partner: "TechCart Pvt Ltd",
-    rider: "Not Assigned",
-    origin: "Lahore Warehouse",
-    destination: "Islamabad F-10",
-    status: "At Origin Warehouse",
-    weight: "2.5kg",
-    type: "Electronics",
-    temperature: { current: 14, unit: "C" },
-    shock: { level: "Low", note: "Normal movement" },
-    humidity: 40,
-    timeline: [
-      { label: "Shipment Created", timestamp: "2025-01-10 09:40 AM" },
-      { label: "Picked Up by Rider", timestamp: "2025-01-10 11:05 AM" },
-      {
-        label: "Arrived at Origin Warehouse",
-        timestamp: "2025-01-10 01:20 PM",
-      },
-    ],
-  });
-
-  const blockchainLogs = [
-    { event: "Created", hash: "0xAAA...223", block: 123441 },
-    { event: "Picked Up", hash: "0xBB1...789", block: 123455 },
-    { event: "Arrived Warehouse", hash: "0xCC4...991", block: 123476 },
-  ];
+  const [shipment, setShipment] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const token = localStorage.getItem("token");
 
   const riderDirectory = {
     "Ali Raza": {
@@ -55,154 +31,395 @@ export default function ShipmentDetailsAdmin() {
     },
   };
   const riderAssigned =
-    shipment.rider && shipment.rider.toLowerCase() !== "not assigned";
-  const riderDetails = riderAssigned ? riderDirectory[shipment.rider] : null;
+    shipment?.rider && shipment?.rider?.toLowerCase?.() !== "not assigned";
+  const riderDetails = riderAssigned ? riderDirectory[shipment?.rider] : null;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadShipment = async () => {
+      try {
+        setLoadError("");
+        setIsLoading(true);
+        const endpoint = API_URL
+          ? `${API_URL}/shipment/trackShipment/${id}`
+          : `/trackShipment/${id}`;
+        const headers = token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : undefined;
+        const res = await fetch(endpoint, { headers });
+        const data = await res.json();
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Unable to load shipment.");
+        }
+        console.log(data);
+        if (isMounted) {
+          setShipment(data?.shipment || null);
+        }
+      } catch (error) {
+        if (isMounted)
+          setLoadError(error?.message || "Unable to load shipment.");
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    if (id) {
+      loadShipment();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, token]);
+
+  const metaRows = useMemo(() => {
+    if (!shipment) return [];
+    return [
+      { label: "Shipment ID", value: shipment?._id || id },
+      { label: "User ID", value: shipment?.userId || "N/A" },
+      { label: "Status", value: shipment?.status || "N/A" },
+      { label: "Rider Status", value: shipment?.riderStatus || "N/A" },
+      { label: "Package Type", value: shipment?.packageType || "N/A" },
+      {
+        label: "Weight",
+        value:
+          shipment?.weight !== undefined && shipment?.weight !== null
+            ? `${shipment.weight}`
+            : "N/A",
+      },
+      {
+        label: "COD Amount",
+        value:
+          shipment?.codAmount !== undefined && shipment?.codAmount !== null
+            ? `${shipment.codAmount}`
+            : "N/A",
+      },
+      {
+        label: "Delivery Charges",
+        value:
+          shipment?.delieveryCharges !== undefined &&
+          shipment?.delieveryCharges !== null
+            ? `${shipment.delieveryCharges}`
+            : "N/A",
+      },
+      {
+        label: "Use Wallet",
+        value:
+          shipment?.useWallet === true
+            ? "Yes"
+            : shipment?.useWallet === false
+              ? "No"
+              : "N/A",
+      },
+      {
+        label: "Created At",
+        value: shipment?.createdAt
+          ? new Date(shipment.createdAt).toLocaleString()
+          : "N/A",
+      },
+      {
+        label: "Updated At",
+        value: shipment?.updatedAt
+          ? new Date(shipment.updatedAt).toLocaleString()
+          : "N/A",
+      },
+    ];
+  }, [shipment, id]);
+  const alerts = useMemo(() => {
+    if (!shipment) return [];
+    if (Array.isArray(shipment?.alerts)) return shipment.alerts;
+    if (Array.isArray(shipment?.alertHistory)) return shipment.alertHistory;
+    if (Array.isArray(shipment?.iotAlerts)) return shipment.iotAlerts;
+    return [];
+  }, [shipment]);
+  const timelineEntries = useMemo(() => {
+    if (!shipment) return [];
+    if (Array.isArray(shipment?.timeline)) return shipment.timeline;
+    if (Array.isArray(shipment?.history)) return shipment.history;
+    if (Array.isArray(shipment?.statusHistory)) return shipment.statusHistory;
+    const entries = [];
+    if (shipment?.createdAt) {
+      entries.push({
+        label: "Shipment Created",
+        timestamp: shipment.createdAt,
+      });
+    }
+    if (shipment?.status) {
+      entries.push({
+        label: `Current Status: ${shipment.status}`,
+        timestamp: shipment.updatedAt || shipment.createdAt,
+      });
+    }
+    if (
+      shipment?.updatedAt &&
+      shipment.updatedAt !== shipment.createdAt
+    ) {
+      entries.push({
+        label: "Last Updated",
+        timestamp: shipment.updatedAt,
+      });
+    }
+    return entries;
+  }, [shipment]);
 
   return (
     <div className="min-h-screen bg-light customer-page">
       <AdminTopbar />
 
       <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
-          {/* TITLE */}
-          <h1 className="text-2xl font-bold text-primary mb-6">
-            Shipment Details - {shipment.id}
-          </h1>
+        <h1 className="text-2xl font-bold text-primary mb-6">
+          Shipment Details - {id}
+        </h1>
 
-          {/* MAP SECTION */}
-          <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
-            <h2 className="text-xl font-bold text-primary mb-4">
-              Live Map & Sensor Data
-            </h2>
+        {isLoading ? (
+          <div className="customer-card bg-white p-6 rounded-xl shadow text-sm text-gray-500">
+            <span className="loading loading-spinner loading-sm" /> Loading
+            shipment...
+          </div>
+        ) : loadError ? (
+          <div className="customer-card bg-white p-6 rounded-xl shadow text-sm text-red-600">
+            {loadError}
+          </div>
+        ) : shipment ? (
+          <div className="space-y-8">
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Live Map & Sensor Data
+              </h2>
 
-            <div className="relative w-full h-[450px] bg-gray-200 rounded-xl overflow-hidden flex items-center justify-center text-gray-500">
-              Mapbox (Admin View)
-              {/* IoT Overlays */}
-              <div className="absolute top-6 left-6 bg-white shadow-xl px-5 py-3 rounded-xl border">
-                <p className="text-sm text-gray-600">Temperature</p>
-                <p className="text-3xl font-bold text-red-600">
-                  {shipment.temperature.current}
-                  {shipment.temperature.unit}
-                </p>
-              </div>
-              <div className="absolute top-6 right-6 bg-white shadow-xl px-5 py-3 rounded-xl border">
-                <p className="text-sm text-gray-600">Shock</p>
-                <p className="text-xl font-bold text-yellow-600">
-                  {shipment.shock.level}
-                </p>
-                <p className="text-xs text-gray-500">{shipment.shock.note}</p>
-              </div>
-              <div className="absolute bottom-6 right-6 bg-white shadow-xl px-5 py-3 rounded-xl border">
-                <p className="text-sm text-gray-600">Humidity</p>
-                <p className="text-xl font-bold text-blue-600">
-                  {shipment.humidity}%
-                </p>
+              <div className="relative w-full h-[420px] bg-gray-200 rounded-xl overflow-hidden flex items-center justify-center text-gray-500">
+                Mapbox (Admin View)
+                <div className="absolute top-6 left-6 bg-white shadow-xl px-5 py-3 rounded-xl border">
+                  <p className="text-sm text-gray-600">Temperature</p>
+                  <p className="text-3xl font-bold text-red-600">--</p>
+                </div>
+                <div className="absolute top-6 right-6 bg-white shadow-xl px-5 py-3 rounded-xl border">
+                  <p className="text-sm text-gray-600">Shock</p>
+                  <p className="text-xl font-bold text-yellow-600">--</p>
+                  <p className="text-xs text-gray-500">No data</p>
+                </div>
+                <div className="absolute bottom-6 right-6 bg-white shadow-xl px-5 py-3 rounded-xl border">
+                  <p className="text-sm text-gray-600">Humidity</p>
+                  <p className="text-xl font-bold text-blue-600">--</p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* SHIPMENT INFO */}
-          <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
-            <h2 className="text-xl font-bold text-primary mb-4">
-              Shipment Information
-            </h2>
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-primary">
+                    IoT Alerts
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Temperature, shock, and humidity breach notifications.
+                  </p>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs bg-amber-50 text-amber-700">
+                  {alerts.length} alert{alerts.length === 1 ? "" : "s"}
+                </span>
+              </div>
 
-            <div className="grid md:grid-cols-2 gap-6 text-gray-700">
-              <p>
-                <strong>Partner:</strong> {shipment.partner}
-              </p>
-              <p>
-                <strong>Assigned Rider:</strong>{" "}
-                {riderAssigned ? shipment.rider : "No rider assigned"}
-              </p>
-              <p>
-                <strong>Status:</strong> {shipment.status}
-              </p>
-              <p>
-                <strong>Type:</strong> {shipment.type}
-              </p>
-              <p>
-                <strong>Weight:</strong> {shipment.weight}
-              </p>
-              <p>
-                <strong>Origin:</strong> {shipment.origin}
-              </p>
-              <p>
-                <strong>Destination:</strong> {shipment.destination}
-              </p>
+              {alerts.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  No alerts recorded for this shipment.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {alerts.map((alert, index) => (
+                    <div
+                      key={alert?.id || alert?._id || index}
+                      className="border border-slate-100 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white/70"
+                    >
+                      <div>
+                        <p className="text-xs text-gray-500">
+                          {alert?.time ||
+                            alert?.timestamp ||
+                            alert?.createdAt ||
+                            "Timestamp unavailable"}
+                        </p>
+                        <p className="font-semibold text-slate-900">
+                          {alert?.type || "Alert"}{" "}
+                          {alert?.shipmentId ? `- ${alert.shipmentId}` : ""}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {alert?.message || alert?.note || "No details."}
+                        </p>
+                        {alert?.location ? (
+                          <p className="text-xs text-gray-500">
+                            {alert.location}
+                          </p>
+                        ) : null}
+                      </div>
+                      <span className="text-xs px-3 py-1 rounded-full bg-amber-50 text-amber-700">
+                        {alert?.severity || alert?.level || "Info"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-          </div>
-
-          {/* RIDER INFO */}
-          <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
-            <h2 className="text-xl font-bold text-primary mb-4">
-              Rider Information
-            </h2>
-
-            {!riderAssigned ? (
-              <p className="text-gray-500">No rider assigned.</p>
-            ) : (
-              <div className="grid md:grid-cols-2 gap-6 text-gray-700">
-                <p>
-                  <strong>Name:</strong> {shipment.rider}
-                </p>
-                <p>
-                  <strong>Rider ID:</strong> {riderDetails?.id || "N/A"}
-                </p>
-                <p>
-                  <strong>Phone:</strong> {riderDetails?.phone || "N/A"}
-                </p>
-                <p>
-                  <strong>City:</strong> {riderDetails?.city || "N/A"}
-                </p>
-                <p>
-                  <strong>Zone:</strong> {riderDetails?.zone || "N/A"}
-                </p>
+            {alerts.length > 0 && (
+              <div className="customer-card bg-white p-6 shadow rounded-xl">
+                <h2 className="text-xl font-bold text-primary mb-4">
+                  Alerts History
+                </h2>
+                <ul className="space-y-3 text-sm text-gray-700">
+                  {alerts.map((alert, index) => (
+                    <li
+                      key={alert?.id || alert?._id || `history-${index}`}
+                      className="border-l-4 border-primary/50 pl-4"
+                    >
+                      <p className="font-semibold">
+                        {alert?.type || "Alert"}{" "}
+                        {alert?.severity ? `(${alert.severity})` : ""}
+                      </p>
+                      <p className="text-gray-500">
+                        {alert?.time ||
+                          alert?.timestamp ||
+                          alert?.createdAt ||
+                          "Timestamp unavailable"}
+                      </p>
+                      <p>{alert?.message || alert?.note || "No details."}</p>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
-          </div>
 
-          {/* TIMELINE */}
-          <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
-            <h2 className="text-xl font-bold text-primary mb-4">Timeline</h2>
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Delivery Timeline
+              </h2>
+              {timelineEntries.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  No timeline events recorded yet.
+                </p>
+              ) : (
+                <ul className="space-y-4">
+                  {timelineEntries.map((entry, index) => (
+                    <li
+                      key={entry?.id || entry?._id || `${entry?.label}-${index}`}
+                      className="flex flex-col sm:flex-row sm:items-start gap-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="h-3 w-3 rounded-full bg-primary/80 mt-1" />
+                        <p className="font-semibold text-gray-800">
+                          {entry?.label || "Timeline update"}
+                        </p>
+                      </div>
+                      <p className="text-sm text-gray-500 sm:ml-auto">
+                        {entry?.timestamp
+                          ? new Date(entry.timestamp).toLocaleString()
+                          : "Timestamp unavailable"}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-            <ul className="space-y-4">
-              {shipment.timeline.map((t, idx) => (
-                <li key={idx} className="border-l-4 border-primary pl-4">
-                  <p className="font-semibold">{t.label}</p>
-                  <p className="text-sm text-gray-500">{t.timestamp}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Shipment Information
+              </h2>
 
-          {/* BLOCKCHAIN LOGS */}
-          <div className="customer-card bg-white p-6 shadow rounded-xl mb-8">
-            <h2 className="text-xl font-bold text-primary mb-4">
-              Blockchain Verification
-            </h2>
-
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-gray-50 border-b">
-                  <th className="p-3">Event</th>
-                  <th className="p-3">Hash</th>
-                  <th className="p-3">Block</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {blockchainLogs.map((log, idx) => (
-                  <tr key={idx} className="border-b">
-                    <td className="p-3">{log.event}</td>
-                    <td className="p-3 text-primary">{log.hash}</td>
-                    <td className="p-3">{log.block}</td>
-                  </tr>
+              <div className="grid md:grid-cols-2 gap-6 text-gray-700">
+                {metaRows.map((row) => (
+                  <p key={row.label}>
+                    <strong>{row.label}:</strong> {row.value}
+                  </p>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
 
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Pickup Details
+              </h2>
+              <div className="grid md:grid-cols-2 gap-6 text-gray-700">
+                <p>
+                  <strong>Pickup Address:</strong>{" "}
+                  {shipment?.pickupAddress || "N/A"}
+                </p>
+                <p>
+                  <strong>Pickup City:</strong> {shipment?.pickupCity || "N/A"}
+                </p>
+                <p>
+                  <strong>Pickup Zone:</strong> {shipment?.pickupZone || "N/A"}
+                </p>
+              </div>
+            </div>
+
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Delivery Details
+              </h2>
+              <div className="grid md:grid-cols-2 gap-6 text-gray-700">
+                <p>
+                  <strong>Receiver Name:</strong>{" "}
+                  {shipment?.receiverName || "N/A"}
+                </p>
+                <p>
+                  <strong>Receiver Phone:</strong>{" "}
+                  {shipment?.receiverPhone || "N/A"}
+                </p>
+                <p>
+                  <strong>Delivery Address:</strong>{" "}
+                  {shipment?.deliveryAddress || "N/A"}
+                </p>
+                <p>
+                  <strong>Delivery City:</strong>{" "}
+                  {shipment?.deliveryCity || "N/A"}
+                </p>
+                <p>
+                  <strong>Delivery Zone:</strong>{" "}
+                  {shipment?.deliveryZone || "N/A"}
+                </p>
+                <p>
+                  <strong>Notes:</strong> {shipment?.notes || "N/A"}
+                </p>
+              </div>
+            </div>
+
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Rider Information
+              </h2>
+
+              {!riderAssigned ? (
+                <p className="text-gray-500">No rider assigned.</p>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-6 text-gray-700">
+                  <p>
+                    <strong>Name:</strong> {shipment?.rider}
+                  </p>
+                  <p>
+                    <strong>Rider ID:</strong> {riderDetails?.id || "N/A"}
+                  </p>
+                  <p>
+                    <strong>Phone:</strong> {riderDetails?.phone || "N/A"}
+                  </p>
+                  <p>
+                    <strong>City:</strong> {riderDetails?.city || "N/A"}
+                  </p>
+                  <p>
+                    <strong>Zone:</strong> {riderDetails?.zone || "N/A"}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="customer-card bg-white p-6 rounded-xl shadow text-sm text-gray-500">
+            Shipment not found.
+          </div>
+        )}
       </div>
     </div>
   );

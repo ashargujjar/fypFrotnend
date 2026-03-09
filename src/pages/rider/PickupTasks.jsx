@@ -1,6 +1,5 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import RiderSidebar from "./components/RiderSidebar";
 import RiderTopbar from "./components/RiderTopbar";
 
 const demoPickups = [
@@ -31,17 +30,16 @@ const demoPickups = [
     contact: "+92 300 5552211",
     notes: "Temperature-controlled box",
     origin_city: "Faisalabad",
-    destination_city: "Karachi", // intercity ??? hidden from pickup list
+    destination_city: "Karachi",
     iotRequired: ["GPS", "Temperature"],
   },
 ];
-
 
 export default function PickupTasks() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState(
     demoPickups.filter(
-      (t) => t.origin_city === t.destination_city // hide intercity for pickup riders
+      (t) => t.origin_city === t.destination_city
     )
   );
   const [statusMap, setStatusMap] = useState({});
@@ -81,42 +79,39 @@ export default function PickupTasks() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-light">
-      <RiderSidebar />
-      <div className="flex-1">
-        <RiderTopbar />
+    <div className="min-h-screen bg-light customer-page">
+      <RiderTopbar />
 
-        <div className="p-4 sm:p-6 md:p-8 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">Pickup Tasks</h1>
-              <p className="text-gray-600">
-                Same-city pickups only; intercity legs move to Linehaul riders.
-              </p>
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-primary">Pickup Tasks</h1>
+            <p className="text-gray-600">
+              Same-city pickups only; intercity legs move to Linehaul riders.
+            </p>
+          </div>
+          <span className="customer-card bg-white px-3 py-1 rounded-full text-sm text-slate-600">
+            Pending: {tasks.length}
+          </span>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          {tasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              status={statusMap[task.id] || "Assigned"}
+              iotState={iotMap[task.id]}
+              onAdvance={advance}
+              onIotChange={updateIot}
+              onRoute={handleRoute}
+            />
+          ))}
+          {tasks.length === 0 && (
+            <div className="customer-card bg-white rounded-xl p-6 text-center text-gray-500 col-span-full">
+              No pickup tasks. Awaiting dispatch from admin.
             </div>
-            <span className="text-sm bg-white border px-3 py-1 rounded-full shadow">
-              Pending: {tasks.length}
-            </span>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            {tasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                status={statusMap[task.id] || "Assigned"}
-                iotState={iotMap[task.id]}
-                onAdvance={advance}
-                onIotChange={updateIot}
-                onRoute={handleRoute}
-              />
-            ))}
-            {tasks.length === 0 && (
-              <div className="bg-white rounded-xl shadow p-6 text-center text-gray-500 col-span-full">
-                No pickup tasks. Awaiting dispatch from admin.
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -131,7 +126,7 @@ function TaskCard({ task, status, iotState, onAdvance, onIotChange, onRoute }) {
   const showIot = requiresIot && status === "Arrived at Pickup";
 
   return (
-    <div className="bg-white shadow rounded-xl p-5 space-y-3">
+    <div className="customer-card customer-card-elevate bg-white rounded-xl p-5 space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-gray-500">Shipment {task.shipmentId}</p>
@@ -170,7 +165,7 @@ function TaskCard({ task, status, iotState, onAdvance, onIotChange, onRoute }) {
                 onIotChange(task.id, { deviceId: e.target.value })
               }
               placeholder="Enter device ID"
-              className="border rounded-lg px-3 py-2 col-span-2"
+              className="customer-input border rounded-lg px-3 py-2 col-span-2"
             />
             <button
               onClick={() =>
@@ -178,7 +173,7 @@ function TaskCard({ task, status, iotState, onAdvance, onIotChange, onRoute }) {
                   status: "Device attached",
                 })
               }
-              className="bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
+              className="customer-button bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
             >
               Attach IoT Device
             </button>
@@ -189,31 +184,31 @@ function TaskCard({ task, status, iotState, onAdvance, onIotChange, onRoute }) {
       <div className="grid grid-cols-2 gap-2 text-sm">
         <button
           onClick={() => onAdvance(task.id, "On the Way")}
-          className="bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
+          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
         >
           Start Pickup
         </button>
         <button
           onClick={() => onAdvance(task.id, "Arrived at Pickup")}
-          className="bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
+          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
         >
           Arrive
         </button>
         <button
           onClick={() => onAdvance(task.id, "Pickup Completed")}
-          className="bg-green-600 text-white rounded-lg px-3 py-2 col-span-2 hover:bg-green-700"
+          className="customer-button bg-green-600 text-white rounded-lg px-3 py-2 col-span-2 hover:bg-green-700"
         >
           Confirm Pickup
         </button>
         <button
           onClick={() => onAdvance(task.id, "Dropped at Origin Hub")}
-          className="bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg px-3 py-2 col-span-2 hover:bg-emerald-100"
+          className="customer-button bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg px-3 py-2 col-span-2 hover:bg-emerald-100"
         >
           Mark Dropped at Warehouse
         </button>
         <button
           onClick={() => onRoute(task)}
-          className="bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 col-span-2 hover:bg-blue-100"
+          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 col-span-2 hover:bg-blue-100"
         >
           View Route to Pickup
         </button>

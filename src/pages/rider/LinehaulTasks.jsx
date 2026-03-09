@@ -1,5 +1,4 @@
-import { useState } from "react";
-import RiderSidebar from "./components/RiderSidebar";
+﻿import { useState } from "react";
 import RiderTopbar from "./components/RiderTopbar";
 
 const demoTrips = [
@@ -36,40 +35,40 @@ export default function LinehaulTasks() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-light">
-      <RiderSidebar />
-      <div className="flex-1">
-        <RiderTopbar />
+    <div className="min-h-screen bg-light customer-page">
+      <RiderTopbar />
 
-        <div className="p-4 sm:p-6 md:p-8 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">Linehaul / Hub Transfer</h1>
-              <p className="text-gray-600">
-                Intercity loads only. Pickup and delivery riders do not see these legs.
-              </p>
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-primary">
+              Linehaul / Hub Transfer
+            </h1>
+            <p className="text-gray-600">
+              Intercity loads only. Pickup and delivery riders do not see these
+              legs.
+            </p>
+          </div>
+          <span className="customer-card bg-white px-3 py-1 rounded-full text-sm text-slate-600">
+            Active Trips: {trips.length}
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          {trips.map((trip) => (
+            <TripCard
+              key={trip.id}
+              trip={trip}
+              status={statusMap[trip.id] || "Assigned"}
+              onStart={() => updateStatus(trip.id, "On Route")}
+              onReach={() => completeTrip(trip.id)}
+            />
+          ))}
+          {trips.length === 0 && (
+            <div className="customer-card bg-white rounded-xl p-6 text-center text-gray-500">
+              No intercity loads right now. Await next linehaul assignment.
             </div>
-            <span className="text-sm bg-white border px-3 py-1 rounded-full shadow">
-              Active Trips: {trips.length}
-            </span>
-          </div>
-
-          <div className="space-y-4">
-            {trips.map((trip) => (
-              <TripCard
-                key={trip.id}
-                trip={trip}
-                status={statusMap[trip.id] || "Assigned"}
-                onStart={() => updateStatus(trip.id, "On Route")}
-                onReach={() => completeTrip(trip.id)}
-              />
-            ))}
-            {trips.length === 0 && (
-              <div className="bg-white rounded-xl shadow p-6 text-center text-gray-500">
-                No intercity loads right now. Await next linehaul assignment.
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -78,7 +77,7 @@ export default function LinehaulTasks() {
 
 function TripCard({ trip, status, onStart, onReach }) {
   return (
-    <div className="bg-white shadow rounded-xl p-5 space-y-3">
+    <div className="customer-card customer-card-elevate bg-white rounded-xl p-5 space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-gray-500">Trip</p>
@@ -121,21 +120,15 @@ function TripCard({ trip, status, onStart, onReach }) {
       <div className="grid sm:grid-cols-2 gap-2 text-sm">
         <button
           onClick={onStart}
-          className="bg-primary text-white rounded-lg px-3 py-2 hover:bg-blue-700"
+          className="customer-button bg-primary text-white rounded-lg px-3 py-2 hover:bg-blue-700"
         >
           Start Linehaul Trip
         </button>
         <button
           onClick={onReach}
-          className="bg-green-600 text-white rounded-lg px-3 py-2 hover:bg-green-700"
+          className="customer-button bg-green-600 text-white rounded-lg px-3 py-2 hover:bg-green-700"
         >
           Reached Destination Hub
-        </button>
-        <button
-          className="bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 sm:col-span-2 hover:bg-blue-100"
-          onClick={() => window.open(trip.manifestUrl, "_blank")}
-        >
-          Upload / View Manifest
         </button>
       </div>
     </div>

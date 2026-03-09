@@ -1,6 +1,5 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import RiderSidebar from "./components/RiderSidebar";
 import RiderTopbar from "./components/RiderTopbar";
 
 const demoDeliveries = [
@@ -35,7 +34,7 @@ const demoDeliveries = [
     notes: "Fragile",
     otp: "9081",
     origin_city: "Faisalabad",
-    destination_city: "Karachi", // hidden for delivery riders until destination hub handles
+    destination_city: "Karachi",
   },
 ];
 
@@ -126,60 +125,56 @@ export default function DeliveryTasks() {
   );
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-light">
-      <RiderSidebar />
-      <div className="flex-1">
-        <RiderTopbar />
+    <div className="min-h-screen bg-light customer-page">
+      <RiderTopbar />
 
-        <div className="p-4 sm:p-6 md:p-8 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">My Assignments</h1>
-              <p className="text-gray-600">
-                Final-mile only. Intercity legs stay hidden until parcels reach
-                destination hubs.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 text-sm">
-              <span className="bg-white border px-3 py-1 rounded-full shadow">
-                Assigned: {statusCounts.assigned}
-              </span>
-              <span className="bg-white border px-3 py-1 rounded-full shadow">
-                In Progress: {statusCounts.inProgress}
-              </span>
-              <span className="bg-white border px-3 py-1 rounded-full shadow">
-                PIN Verified: {statusCounts.verified}
-              </span>
-            </div>
+      <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-primary">My Assignments</h1>
+            <p className="text-gray-600">
+              Final-mile only. Intercity legs stay hidden until parcels reach
+              destination hubs.
+            </p>
           </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            {tasks.map((task) => (
-              <DeliveryCard
-                key={task.id}
-                task={task}
-                status={statusMap[task.id] || "Assigned"}
-                onComplete={complete}
-                onStatus={setStatus}
-                onRoute={handleRoute}
-                otpValue={otpInputs[task.id] || ""}
-                onOtpChange={handleOtpChange}
-                onVerifyOtp={handleVerifyOtp}
-                isVerified={!!otpVerified[task.id]}
-                showOtp={!!collectingOtp[task.id]}
-                startCollectingOtp={startCollectingOtp}
-                otpError={otpError[task.id]}
-                iotDetachState={iotDetachMap[task.id]}
-                onIotDetachChange={updateIotDetach}
-              />
-            ))}
-            {tasks.length === 0 && (
-              <div className="bg-white rounded-xl shadow p-6 text-center text-gray-500 col-span-full">
-                No delivery tasks yet. Check back after hub receives parcels.
-              </div>
-            )}
+          <div className="flex flex-wrap gap-2 text-sm">
+            <span className="customer-card bg-white px-3 py-1 rounded-full text-slate-600">
+              Assigned: {statusCounts.assigned}
+            </span>
+            <span className="customer-card bg-white px-3 py-1 rounded-full text-slate-600">
+              In Progress: {statusCounts.inProgress}
+            </span>
+            <span className="customer-card bg-white px-3 py-1 rounded-full text-slate-600">
+              PIN Verified: {statusCounts.verified}
+            </span>
           </div>
+        </div>
 
+        <div className="grid md:grid-cols-2 gap-4">
+          {tasks.map((task) => (
+            <DeliveryCard
+              key={task.id}
+              task={task}
+              status={statusMap[task.id] || "Assigned"}
+              onComplete={complete}
+              onStatus={setStatus}
+              onRoute={handleRoute}
+              otpValue={otpInputs[task.id] || ""}
+              onOtpChange={handleOtpChange}
+              onVerifyOtp={handleVerifyOtp}
+              isVerified={!!otpVerified[task.id]}
+              showOtp={!!collectingOtp[task.id]}
+              startCollectingOtp={startCollectingOtp}
+              otpError={otpError[task.id]}
+              iotDetachState={iotDetachMap[task.id]}
+              onIotDetachChange={updateIotDetach}
+            />
+          ))}
+          {tasks.length === 0 && (
+            <div className="customer-card bg-white rounded-xl p-6 text-center text-gray-500 col-span-full">
+              No delivery tasks yet. Check back after hub receives parcels.
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -221,14 +216,12 @@ function DeliveryCard({
   const isDetached = iotDetach.status === "Device detached";
 
   return (
-    <div className="bg-white shadow rounded-xl p-5 space-y-4 border border-transparent hover:border-primary/20 transition">
+    <div className="customer-card customer-card-elevate bg-white rounded-xl p-5 space-y-4 transition">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs text-gray-500">Shipment {task.shipmentId}</p>
           <h3 className="text-lg font-bold text-primary">{task.id}</h3>
-          <p className="text-xs text-gray-500 mt-1">
-            Drop-off: {task.dropoff}
-          </p>
+          <p className="text-xs text-gray-500 mt-1">Drop-off: {task.dropoff}</p>
         </div>
         <span className={`px-3 py-1 rounded-full text-xs ${statusClass}`}>
           {status}
@@ -248,25 +241,25 @@ function DeliveryCard({
       <div className="grid grid-cols-2 gap-2 text-sm">
         <button
           onClick={() => onStatus(task.id, "Out for Delivery")}
-          className="bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
+          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
         >
           Start Delivery
         </button>
         <button
           onClick={() => onStatus(task.id, "Arrived")}
-          className="bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
+          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
         >
           Arrived
         </button>
         <button
           onClick={() => startCollectingOtp(task.id)}
-          className="bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
+          className="customer-button bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
         >
           Collect PIN
         </button>
         <button
           onClick={() => onRoute(task)}
-          className="bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 col-span-2 hover:bg-blue-100"
+          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 col-span-2 hover:bg-blue-100"
         >
           View Route to Drop-off
         </button>
@@ -286,11 +279,11 @@ function DeliveryCard({
               value={otpValue}
               onChange={(e) => onOtpChange(task.id, e.target.value)}
               placeholder="Enter 4-digit PIN"
-              className="border border-gray-300 rounded-lg px-3 py-2 w-44 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="customer-input border border-gray-300 rounded-lg px-3 py-2 w-44"
             />
             <button
               onClick={() => onVerifyOtp(task)}
-              className="bg-primary text-white px-3 py-2 rounded-lg hover:bg-blue-700"
+              className="customer-button bg-primary text-white px-3 py-2 rounded-lg hover:bg-blue-700"
             >
               Verify PIN
             </button>
@@ -308,7 +301,9 @@ function DeliveryCard({
         <div className="space-y-3">
           <div className="border rounded-lg p-3 bg-slate-50 space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-primary">Detach IoT Device</p>
+              <p className="text-sm font-semibold text-primary">
+                Detach IoT Device
+              </p>
               <span className="text-xs text-gray-500">{iotDetach.status}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm">
@@ -319,13 +314,13 @@ function DeliveryCard({
                   onIotDetachChange(task.id, { deviceId: e.target.value })
                 }
                 placeholder="Enter device ID to detach"
-                className="border rounded-lg px-3 py-2 col-span-2"
+                className="customer-input border rounded-lg px-3 py-2 col-span-2"
               />
               <button
                 onClick={() =>
                   onIotDetachChange(task.id, { status: "Device detached" })
                 }
-                className="bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
+                className="customer-button bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
               >
                 Detach IoT Device
               </button>
@@ -334,7 +329,7 @@ function DeliveryCard({
           <button
             onClick={() => onComplete(task.id)}
             disabled={!isDetached}
-            className={`rounded-lg px-3 py-2 w-full ${
+            className={`customer-button rounded-lg px-3 py-2 w-full ${
               isDetached
                 ? "bg-green-600 text-white hover:bg-green-700"
                 : "bg-gray-200 text-gray-500 cursor-not-allowed"

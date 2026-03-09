@@ -1,12 +1,47 @@
-export default function RiderTopbar() {
-  return (
-    <div className="w-full bg-white shadow-md py-4 px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-      <h2 className="text-xl font-bold text-primary">Rider Dashboard</h2>
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
-      <img
-        src="https://randomuser.me/api/portraits/men/44.jpg"
-        className="w-10 h-10 rounded-full border self-start sm:self-center"
-      />
+export default function RiderTopbar() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const onDashboard =
+    location.pathname === "/rider" || location.pathname === "/rider/dashboard";
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login?role=rider");
+  };
+
+  return (
+    <div className="customer-topbar w-full bg-white shadow-md py-4 px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col">
+        <span className="text-lg font-bold text-primary">ShipSmart</span>
+        <span className="text-sm text-gray-500">Rider Dashboard</span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {!onDashboard && (
+          <Link
+            to="/rider/dashboard"
+            className="customer-button px-3 py-1.5 text-sm font-semibold text-primary border border-primary/30 rounded-full hover:bg-primary hover:text-white transition"
+          >
+            Back to Dashboard
+          </Link>
+        )}
+        <button
+          type="button"
+          onClick={() => navigate("/rider/profile")}
+          className="customer-button px-3 py-1.5 text-sm font-semibold text-primary border border-primary/30 rounded-full hover:bg-primary hover:text-white transition"
+        >
+          Profile
+        </button>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="customer-button px-3 py-1.5 text-sm font-semibold text-white bg-primary rounded-full hover:bg-blue-700 transition"
+        >
+          Logout
+        </button>
+      </div>
     </div>
   );
 }

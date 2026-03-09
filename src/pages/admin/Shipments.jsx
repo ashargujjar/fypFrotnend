@@ -1,26 +1,36 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminTopbar from "./components/AdminTopbar";
-
+const API_URL = import.meta.env.VITE_API_URL;
 export default function Shipments() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("");
-
-  const shipments = [
-    {
-      id: "SS-1012",
-      status: "In Transit",
-      origin: "Lahore",
-      dest: "Islamabad",
-      rider: "Ali Raza",
-    },
-    {
-      id: "SS-1090",
-      status: "Delivered",
-      origin: "Karachi",
-      dest: "Sialkot",
-      rider: "Umar Farooq",
-    },
-  ];
+  const [shipments, setShipments] = useState([]);
+  const token = localStorage.getItem("token");
+  useEffect(() => {
+    const getShipments = async () => {
+      try {
+        const res = await fetch(`${API_URL}/shipment/getAllShipments`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const resp = await res.json();
+        if (!res.ok) {
+          throw new Error(resp.message);
+        }
+        if (resp.shipments.length > 0) {
+          setShipments(resp.shipments);
+          console.log(resp.shipments);
+        } else {
+          throw new Error(resp.message);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    getShipments();
+  }, []);
 
   const riderDirectory = {
     "Ali Raza": { city: "Lahore", phone: "+92 300 1234567" },
@@ -28,16 +38,25 @@ export default function Shipments() {
   };
 
   const filteredAndSortedShipments = useMemo(() => {
-    const filtered = shipments.filter((s) =>
-      s.id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const term = searchTerm.toLowerCase();
+    const filtered = shipments.filter((s) => {
+      const id = String(s?._id || s?.id || "").toLowerCase();
+      return id.includes(term);
+    });
 
     if (!sortField) return filtered;
 
+    const resolveSortValue = (item) => {
+      if (sortField === "origin") return item?.pickupCity || "";
+      if (sortField === "dest") return item?.deliveryCity || "";
+      if (sortField === "rider") return item?.riderStatus || item?.rider || "";
+      return item?.[sortField] || "";
+    };
+
     return [...filtered].sort((a, b) =>
-      (a[sortField] || "").localeCompare(b[sortField] || "")
+      String(resolveSortValue(a)).localeCompare(String(resolveSortValue(b))),
     );
-  }, [searchTerm, sortField]);
+  }, [shipments, searchTerm, sortField]);
 
   return (
     <div className="min-h-screen bg-light customer-page">
@@ -88,14 +107,17 @@ export default function Shipments() {
 
             <tbody>
               {filteredAndSortedShipments.map((s) => (
-                <tr key={s.id} className="border-b hover:bg-gray-50">
-                  <td className="p-3">{s.id}</td>
+                <tr
+                  key={s._id || s.id}
+                  className="border-b hover:bg-gray-50"
+                >
+                  <td className="p-3">{s._id || s.id}</td>
                   <td className="p-3">{s.status}</td>
-                  <td className="p-3">{s.origin}</td>
-                  <td className="p-3">{s.dest}</td>
+                  <td className="p-3">{s.pickupCity}</td>
+                  <td className="p-3">{s.deliveryCity}</td>
                   <td className="p-3">
                     <p className="font-semibold text-primary">
-                      {s.rider || "Unassigned"}
+                      {s.riderStatus || "Unassigned"}
                     </p>
                     {s.rider && riderDirectory[s.rider] && (
                       <div className="text-xs text-gray-500">
@@ -106,9 +128,12 @@ export default function Shipments() {
                   </td>
                   <td className="p-3">
                     <button
-                      onClick={() =>
-                        (window.location.href = `/admin/shipments/${s.id}`)
-                      }
+                      onClick={() => {
+                        const shipmentId = s._id || s.id;
+                        if (shipmentId) {
+                          window.location.href = `/admin/shipments/${shipmentId}`;
+                        }
+                      }}
                       className="customer-button text-primary font-semibold hover:underline"
                     >
                       View

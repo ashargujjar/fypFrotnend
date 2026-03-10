@@ -10,29 +10,14 @@ export default function ShipmentDetailsAdmin() {
   const [loadError, setLoadError] = useState("");
   const token = localStorage.getItem("token");
 
-  const riderDirectory = {
-    "Ali Raza": {
-      id: "R-001",
-      phone: "+92 300 1234567",
-      city: "Lahore",
-      zone: "Central",
-    },
-    "Umar Farooq": {
-      id: "R-002",
-      phone: "+92 301 2223344",
-      city: "Karachi",
-      zone: "South",
-    },
-    "Bilal Ahmed": {
-      id: "R-003",
-      phone: "+92 302 9876543",
-      city: "Islamabad",
-      zone: "North",
-    },
+  const formatCategory = (value) => {
+    const normalized = String(value || "").toLowerCase();
+    if (!normalized) return "N/A";
+    if (normalized === "linehaul") return "Linehaul Rider";
+    if (normalized === "pickup") return "Pickup Rider";
+    if (normalized === "delivery") return "Delivery Rider";
+    return value;
   };
-  const riderAssigned =
-    shipment?.rider && shipment?.rider?.toLowerCase?.() !== "not assigned";
-  const riderDetails = riderAssigned ? riderDirectory[shipment?.rider] : null;
 
   useEffect(() => {
     let isMounted = true;
@@ -57,7 +42,10 @@ export default function ShipmentDetailsAdmin() {
         }
         console.log(data);
         if (isMounted) {
-          setShipment(data?.shipment || null);
+          const nextShipment = Array.isArray(data?.shipment)
+            ? data.shipment[0]
+            : data?.shipment || null;
+          setShipment(nextShipment);
         }
       } catch (error) {
         if (isMounted)
@@ -164,6 +152,21 @@ export default function ShipmentDetailsAdmin() {
       });
     }
     return entries;
+  }, [shipment]);
+  const riderAssignments = useMemo(() => {
+    if (!shipment) return [];
+    if (Array.isArray(shipment?.riderTasks) && shipment.riderTasks.length > 0) {
+      return shipment.riderTasks;
+    }
+    if (shipment?.rider) {
+      return [
+        {
+          rider: { name: shipment.rider },
+          status: shipment?.riderStatus,
+        },
+      ];
+    }
+    return [];
   }, [shipment]);
 
   return (
@@ -392,25 +395,67 @@ export default function ShipmentDetailsAdmin() {
                 Rider Information
               </h2>
 
-              {!riderAssigned ? (
+              {riderAssignments.length === 0 ? (
                 <p className="text-gray-500">No rider assigned.</p>
               ) : (
-                <div className="grid md:grid-cols-2 gap-6 text-gray-700">
-                  <p>
-                    <strong>Name:</strong> {shipment?.rider}
-                  </p>
-                  <p>
-                    <strong>Rider ID:</strong> {riderDetails?.id || "N/A"}
-                  </p>
-                  <p>
-                    <strong>Phone:</strong> {riderDetails?.phone || "N/A"}
-                  </p>
-                  <p>
-                    <strong>City:</strong> {riderDetails?.city || "N/A"}
-                  </p>
-                  <p>
-                    <strong>Zone:</strong> {riderDetails?.zone || "N/A"}
-                  </p>
+                <div className="space-y-4">
+                  {riderAssignments.map((task, index) => {
+                    const rider = task?.rider || {};
+                    const riderId =
+                      rider?._id || task?.riderId || task?.rider || "N/A";
+                    return (
+                      <div
+                        key={task?._id || rider?._id || `rider-${index}`}
+                        className="border border-slate-100 rounded-lg p-4 bg-slate-50"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-semibold text-primary">
+                            {rider?.name || shipment?.rider || "Unknown Rider"}
+                          </p>
+                          <span className="text-xs px-3 py-1 rounded-full bg-amber-50 text-amber-700">
+                            {task?.status ||
+                              shipment?.riderStatus ||
+                              "Assigned"}
+                          </span>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-4 text-gray-700 mt-3">
+                          <p>
+                            <strong>Rider ID:</strong> {riderId}
+                          </p>
+                          <p>
+                            <strong>Phone:</strong> {rider?.phone || "N/A"}
+                          </p>
+                          <p>
+                            <strong>Email:</strong> {rider?.email || "N/A"}
+                          </p>
+                          <p>
+                            <strong>City:</strong>{" "}
+                            {rider?.assignedCity || "N/A"}
+                          </p>
+                          <p>
+                            <strong>Zone:</strong>{" "}
+                            {rider?.assignedZone || "N/A"}
+                          </p>
+                          <p>
+                            <strong>Category:</strong>{" "}
+                            {formatCategory(rider?.riderCategory)}
+                          </p>
+                          {task?.assignedTime ? (
+                            <p>
+                              <strong>Assigned At:</strong>{" "}
+                              {new Date(task.assignedTime).toLocaleString()}
+                            </p>
+                          ) : null}
+                          {task?.completedTime ? (
+                            <p>
+                              <strong>Completed At:</strong>{" "}
+                              {new Date(task.completedTime).toLocaleString()}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -32,9 +32,24 @@ export default function Shipments() {
     getShipments();
   }, []);
 
-  const riderDirectory = {
-    "Ali Raza": { city: "Lahore", phone: "+92 300 1234567" },
-    "Umar Farooq": { city: "Karachi", phone: "+92 301 2223344" },
+  const getRiderDetails = (shipment) => {
+    const task =
+      Array.isArray(shipment?.riderTasks) && shipment.riderTasks.length > 0
+        ? shipment.riderTasks[0]
+        : null;
+    const rider = task?.rider || shipment?.rider || null;
+    const name =
+      typeof rider === "string" ? rider : rider?.name || "";
+    const status =
+      shipment?.riderStatus || task?.status || "";
+    const city =
+      typeof rider === "object" ? rider?.assignedCity : "";
+    const zone =
+      typeof rider === "object" ? rider?.assignedZone : "";
+    const phone =
+      typeof rider === "object" ? rider?.phone : "";
+
+    return { name, status, city, zone, phone };
   };
 
   const filteredAndSortedShipments = useMemo(() => {
@@ -49,7 +64,10 @@ export default function Shipments() {
     const resolveSortValue = (item) => {
       if (sortField === "origin") return item?.pickupCity || "";
       if (sortField === "dest") return item?.deliveryCity || "";
-      if (sortField === "rider") return item?.riderStatus || item?.rider || "";
+      if (sortField === "rider") {
+        const rider = getRiderDetails(item);
+        return rider.name || rider.status || "";
+      }
       return item?.[sortField] || "";
     };
 
@@ -116,15 +134,33 @@ export default function Shipments() {
                   <td className="p-3">{s.pickupCity}</td>
                   <td className="p-3">{s.deliveryCity}</td>
                   <td className="p-3">
-                    <p className="font-semibold text-primary">
-                      {s.riderStatus || "Unassigned"}
-                    </p>
-                    {s.rider && riderDirectory[s.rider] && (
-                      <div className="text-xs text-gray-500">
-                        <p>{riderDirectory[s.rider].city}</p>
-                        <p>{riderDirectory[s.rider].phone}</p>
-                      </div>
-                    )}
+                    {(() => {
+                      const riderInfo = getRiderDetails(s);
+                      if (!riderInfo.name && !riderInfo.status) {
+                        return (
+                          <p className="text-sm text-gray-500">
+                            Unassigned
+                          </p>
+                        );
+                      }
+                      return (
+                        <div className="space-y-1">
+                          <p className="font-semibold text-primary">
+                            {riderInfo.name || "Unknown Rider"}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Status: {riderInfo.status || "Unassigned"}
+                          </p>
+                          {(riderInfo.city || riderInfo.zone || riderInfo.phone) ? (
+                            <div className="text-xs text-gray-500">
+                              {riderInfo.city ? <p>{riderInfo.city}</p> : null}
+                              {riderInfo.zone ? <p>{riderInfo.zone}</p> : null}
+                              {riderInfo.phone ? <p>{riderInfo.phone}</p> : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="p-3">
                     <button

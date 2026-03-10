@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminTopbar from "./components/AdminTopbar";
 import { useNavigate } from "react-router-dom";
+import { toastError, toastSuccess } from "../../utils/toast";
 const API_URL = import.meta.env.VITE_API_URL;
 
 export default function Riders() {
@@ -10,6 +11,8 @@ export default function Riders() {
   const [cityZones, setCityZones] = useState({});
   const [zonesError, setZonesError] = useState("");
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [removingId, setRemovingId] = useState(null);
   const [editForm, setEditForm] = useState({
     id: "",
     name: "",
@@ -31,6 +34,19 @@ export default function Riders() {
     if (normalized === "delivery") return "Delivery Rider";
     return value;
   };
+  const normalizeRider = (item, index = 0) => ({
+    id:
+      item?._id ||
+      item?.riderId ||
+      item?.id ||
+      `R-${String(index + 1).padStart(3, "0")}`,
+    name: item?.name || item?.fullName || item?.username || "Unknown",
+    email: item?.email || item?.userEmail || "",
+    city: item?.assignedCity || item?.city || "-",
+    zone: item?.assignedZone || item?.zone || "",
+    phone: item?.phone || item?.phoneNumber || "-",
+    category: item?.riderCategory || item?.category || item?.type || "",
+  });
   const normalizeCategory = (value) => {
     const normalized = String(value || "").toLowerCase();
     if (!normalized) return "";
@@ -69,18 +85,9 @@ export default function Riders() {
             : Array.isArray(data)
               ? data
               : [];
-        const formatted = list.map((item, index) => ({
-          id:
-            item?._id ||
-            item?.riderId ||
-            `R-${String(index + 1).padStart(3, "0")}`,
-          name: item?.name || item?.fullName || item?.username || "Unknown",
-          email: item?.email || item?.userEmail || "",
-          city: item?.assignedCity || item?.city || "-",
-          zone: item?.assignedZone || item?.zone || "",
-          phone: item?.phone || item?.phoneNumber || "-",
-          category: item?.riderCategory || item?.category || item?.type || "",
-        }));
+        const formatted = list.map((item, index) =>
+          normalizeRider(item, index),
+        );
         if (isMounted) setRiders(formatted);
       } catch (error) {
         if (isMounted) setLoadError(error?.message || "Unable to load riders.");
@@ -171,25 +178,102 @@ export default function Riders() {
     });
   };
 
-  const handleEditSave = () => {
-    setRiders((prev) =>
-      prev.map((r) =>
-        r.id === editForm.id
-          ? {
-              ...r,
-              name: editForm.name,
-              phone: editForm.phone,
-              email: editForm.email,
-              city: editForm.assignedCity,
-              zone: editForm.assignedZone,
-              category: editForm.riderCategory,
-            }
-          : r
-      )
-    );
-    closeEdit();
-  };
+  const handleEditSave = async () => {
+    if (!token) {
+      toastError("Missing admin token.");
+      return;
+    }
+    if (isSaving) return;
 
+    setIsSaving(true);
+    try {
+      const endpoint = API_URL
+        ? `${API_URL}/rider/editRider/${editForm.id}`
+        : `/rider/editRider/${editForm.id}`;
+      const payload = {
+        name: editForm.name,
+        phone: editForm.phone,
+        email: editForm.email,
+        assignedCity: editForm.assignedCity,
+        riderCategory: editForm.riderCategory,
+        assignedZone: editForm.assignedZone,
+      };
+      if (editForm.password) {
+        payload.password = editForm.password;
+      }
+
+      const res = await fetch(endpoint, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "Unable to update rider.");
+      }
+
+      const updated = data?.rider
+        ? normalizeRider(
+            { ...data.rider, _id: data?.rider?._id || editForm.id },
+            0,
+          )
+        : {
+            id: editForm.id,
+            name: editForm.name,
+            phone: editForm.phone,
+            email: editForm.email,
+            city: editForm.assignedCity,
+            zone: editForm.assignedZone,
+            category: editForm.riderCategory,
+          };
+      setRiders((prev) =>
+        prev.map((r) => (r.id === editForm.id ? { ...r, ...updated } : r)),
+      );
+      toastSuccess(data?.message || "Rider updated.");
+      closeEdit();
+    } catch (error) {
+      toastError(error?.message || "Unable to update rider.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  async function handleRemoveRider(id) {
+    if (!token) {
+      toastError("Missing admin token.");
+      return;
+    }
+    if (removingId === id) return;
+
+    setRemovingId(id);
+    try {
+      const endpoint = `${API_URL}/rider/removeRider/${id}`;
+
+      const res = await fetch(endpoint, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
+      }
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "Unable to remove rider.");
+      }
+      setRiders((prev) => prev.filter((r) => r.id !== id));
+      toastSuccess(data?.message || "Rider removed.");
+    } catch (error) {
+      toastError(error?.message || "Unable to remove rider.");
+    } finally {
+      setRemovingId(null);
+    }
+  }
   return (
     <div className="min-h-screen bg-light customer-page">
       <AdminTopbar />
@@ -274,8 +358,19 @@ export default function Riders() {
                           >
                             Edit
                           </button>
-                          <button className="text-red-600 font-semibold">
-                            Remove
+                          <button
+                            className="text-red-600 font-semibold"
+                            onClick={() => handleRemoveRider(r.id)}
+                            disabled={removingId === r.id}
+                          >
+                            {removingId === r.id ? (
+                              <span className="flex items-center gap-2">
+                                <span className="loading loading-spinner loading-xs" />
+                                Removing...
+                              </span>
+                            ) : (
+                              "Remove"
+                            )}
                           </button>
                         </div>
                       </td>
@@ -399,9 +494,17 @@ export default function Riders() {
               <button
                 type="button"
                 onClick={handleEditSave}
-                className="customer-button bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700"
+                disabled={isSaving}
+                className="customer-button bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Save Changes
+                {isSaving ? (
+                  <span className="flex items-center gap-2">
+                    <span className="loading loading-spinner loading-sm" />
+                    Saving...
+                  </span>
+                ) : (
+                  "Save Changes"
+                )}
               </button>
             </div>
           </div>

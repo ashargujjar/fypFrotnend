@@ -32,6 +32,8 @@ export default function BookShipment() {
     deliveryZone: "",
     deliveryAddress: "",
     weight: "",
+    minTemp: "",
+    maxTemp: "",
     packageType: "",
     notes: "",
   });
@@ -165,6 +167,11 @@ export default function BookShipment() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const nextErrors = {};
+    const parseOptionalNumber = (value) => {
+      if (value === "" || value === null || value === undefined) return undefined;
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    };
     const requiredFields = [
       "pickupCity",
       "pickupZone",
@@ -182,18 +189,39 @@ export default function BookShipment() {
       if (!form[field]) nextErrors[field] = "Required";
     });
 
+    const minTempValue = parseOptionalNumber(form.minTemp);
+    const maxTempValue = parseOptionalNumber(form.maxTemp);
+
+    if (form.minTemp !== "" && minTempValue === undefined) {
+      nextErrors.minTemp = "Invalid";
+    }
+    if (form.maxTemp !== "" && maxTempValue === undefined) {
+      nextErrors.maxTemp = "Invalid";
+    }
+    if (
+      minTempValue !== undefined &&
+      maxTempValue !== undefined &&
+      minTempValue > maxTempValue
+    ) {
+      nextErrors.minTemp = "Min exceeds max";
+      nextErrors.maxTemp = "Max below min";
+    }
+
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
       return;
     }
     if (isSubmitting) return;
     setIsSubmitting(true);
+    const { minTemp, maxTemp, ...restForm } = form;
     const submitData = {
-      ...form,
+      ...restForm,
       codAmount: codAmount,
       useWallet: useWallet,
       delieveryCharges: deliveryCharge,
     };
+    if (minTempValue !== undefined) submitData.minTemp = minTempValue;
+    if (maxTempValue !== undefined) submitData.maxTemp = maxTempValue;
 
     try {
       const res = await fetch(`${API_URL}/shipment/bookShipment`, {

@@ -1,94 +1,281 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Topbar from "./components/Topbar";
-import { shipments } from "./data/shipments";
 
-const STATUS_COLOR = {
-  Delivered: "text-green-700",
-  "In Transit": "text-yellow-700",
-  Alert: "text-red-700",
+const API_URL = import.meta.env.VITE_API_URL;
+
+const formatCategory = (value) => {
+  const normalized = String(value || "").toLowerCase();
+  if (!normalized) return "N/A";
+  if (normalized === "linehaul") return "Linehaul Rider";
+  if (normalized === "pickup") return "Pickup Rider";
+  if (normalized === "delivery") return "Delivery Rider";
+  return value;
 };
 
-const STATUS_PROGRESS = {
-  Delivered: 100,
-  "In Transit": 70,
-  Alert: 45,
-};
-
-const MAP_BACKGROUND_STYLE = {
-  backgroundImage:
-    "linear-gradient(rgba(15,23,42,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.15) 1px, transparent 1px), radial-gradient(circle at top, #0f172a, #1e293b)",
-  backgroundSize: "50px 50px, 50px 50px, 100% 100%",
-  backgroundPosition: "center",
+const formatDateTime = (value) => {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "N/A";
+  return date.toLocaleString();
 };
 
 const formatTemperatureUnit = (unit) =>
   unit === "C" ? "\u00b0C" : unit || "\u00b0C";
 
-const LEAFLET_CSS_URL = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-const LEAFLET_JS_URL = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-const LEAFLET_CSS_ID = "leaflet-css";
-const LEAFLET_SCRIPT_ID = "leaflet-js";
-const DEFAULT_CENTER = { lat: 33.6844, lng: 73.0479 };
-
-let leafletPromise;
-
-const ensureLeafletCss = () => {
-  if (typeof document === "undefined") return;
-  if (document.getElementById(LEAFLET_CSS_ID)) return;
-  const link = document.createElement("link");
-  link.id = LEAFLET_CSS_ID;
-  link.rel = "stylesheet";
-  link.href = LEAFLET_CSS_URL;
-  document.head.appendChild(link);
-};
-
-const loadLeaflet = () => {
-  if (typeof window === "undefined") return Promise.resolve(null);
-  ensureLeafletCss();
-  if (window.L) return Promise.resolve(window.L);
-  if (!leafletPromise) {
-    leafletPromise = new Promise((resolve, reject) => {
-      const existingScript = document.getElementById(LEAFLET_SCRIPT_ID);
-      const handleLoad = () => {
-        if (window.L) resolve(window.L);
-        else reject(new Error("Leaflet failed to load."));
-      };
-      const handleError = () =>
-        reject(new Error("Failed to load Leaflet mapping library."));
-
-      if (existingScript) {
-        existingScript.addEventListener("load", handleLoad, { once: true });
-        existingScript.addEventListener("error", handleError, { once: true });
-      } else {
-        const script = document.createElement("script");
-        script.id = LEAFLET_SCRIPT_ID;
-        script.src = LEAFLET_JS_URL;
-        script.async = true;
-        script.onload = handleLoad;
-        script.onerror = handleError;
-        document.body.appendChild(script);
-      }
-    });
-  }
-  return leafletPromise;
+const formatTempBand = (minTemp, maxTemp) => {
+  if (minTemp === null || minTemp === undefined) return "Target band not set";
+  if (maxTemp === null || maxTemp === undefined) return "Target band not set";
+  return `Target band ${minTemp}°C - ${maxTemp}°C`;
 };
 
 export default function ShipmentDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const shipment = shipments.find((s) => s.id === id);
-  const routeProgress = shipment ? (STATUS_PROGRESS[shipment.status] ?? 60) : 0;
-  const routeStops = shipment?.route ?? [];
-  const humidityValue = shipment?.humidity ?? 42;
-  const temperatureUnit = shipment
-    ? formatTemperatureUnit(shipment.temperature.unit)
-    : "\u00b0C";
-  const mapContainerRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const mapMarkerRef = useRef(null);
-  const mapAnimationRef = useRef(null);
-  const [mapError, setMapError] = useState("");
+  const [shipments, setShipments] = useState([]);
+  const [shipment, setShipment] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [isListLoading, setIsListLoading] = useState(true);
+  const [listError, setListError] = useState("");
+  const token = localStorage.getItem("token");
+
+  const shipmentId = shipment?._id || shipment?.id || id || "";
+  const temperatureValue =
+    shipment?.temperature?.current ??
+    shipment?.temperature?.value ??
+    shipment?.temperature ??
+    null;
+  const temperatureUnit = formatTemperatureUnit(shipment?.temperature?.unit);
+  const humidityValue =
+    shipment?.humidity !== undefined && shipment?.humidity !== null
+      ? shipment.humidity
+      : null;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadShipments = async () => {
+      if (!token) {
+        if (isMounted) {
+          setListError("Missing auth token.");
+          setIsListLoading(false);
+        }
+        return;
+      }
+
+      try {
+        setIsListLoading(true);
+        setListError("");
+        const endpoint = API_URL
+          ? `${API_URL}/shipment/getShipments`
+          : "/shipment/getShipments";
+        const res = await fetch(endpoint, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Unable to load shipments.");
+        }
+        const list = Array.isArray(data?.shipments)
+          ? data.shipments
+          : Array.isArray(data)
+            ? data
+            : [];
+        if (isMounted) setShipments(list);
+      } catch (error) {
+        if (isMounted)
+          setListError(error?.message || "Unable to load shipments.");
+      } finally {
+        if (isMounted) setIsListLoading(false);
+      }
+    };
+
+    loadShipments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadShipment = async () => {
+      if (!token) {
+        if (isMounted) {
+          setLoadError("Missing auth token.");
+          setIsLoading(false);
+        }
+        return;
+      }
+      if (!id) {
+        if (isMounted) {
+          setShipment(null);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        setLoadError("");
+        setIsLoading(true);
+        const endpoint = API_URL
+          ? `${API_URL}/shipment/trackShipment/${id}`
+          : `/shipment/trackShipment/${id}`;
+        const res = await fetch(endpoint, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Unable to load shipment.");
+        }
+        if (isMounted) {
+          const nextShipment = Array.isArray(data?.shipment)
+            ? data.shipment[0]
+            : data?.shipment || null;
+          setShipment(nextShipment);
+        }
+      } catch (error) {
+        if (isMounted)
+          setLoadError(error?.message || "Unable to load shipment.");
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    loadShipment();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, token]);
+
+  const alerts = useMemo(() => {
+    if (!shipment) return [];
+    if (Array.isArray(shipment?.alerts)) return shipment.alerts;
+    if (Array.isArray(shipment?.alertHistory)) return shipment.alertHistory;
+    if (Array.isArray(shipment?.iotAlerts)) return shipment.iotAlerts;
+    return [];
+  }, [shipment]);
+
+  const timelineEntries = useMemo(() => {
+    if (!shipment) return [];
+    if (Array.isArray(shipment?.timeline)) return shipment.timeline;
+    if (Array.isArray(shipment?.history)) return shipment.history;
+    if (Array.isArray(shipment?.statusHistory)) return shipment.statusHistory;
+    const entries = [];
+    if (shipment?.createdAt) {
+      entries.push({
+        label: "Shipment Created",
+        timestamp: shipment.createdAt,
+      });
+    }
+    if (shipment?.status) {
+      entries.push({
+        label: `Current Status: ${shipment.status}`,
+        timestamp: shipment.updatedAt || shipment.createdAt,
+      });
+    }
+    if (shipment?.updatedAt && shipment.updatedAt !== shipment.createdAt) {
+      entries.push({
+        label: "Last Updated",
+        timestamp: shipment.updatedAt,
+      });
+    }
+    return entries;
+  }, [shipment]);
+
+  const riderAssignments = useMemo(() => {
+    if (!shipment) return [];
+    if (Array.isArray(shipment?.riderTasks) && shipment.riderTasks.length > 0) {
+      return shipment.riderTasks;
+    }
+    if (shipment?.rider) {
+      return [
+        {
+          rider: { name: shipment.rider },
+          status: shipment?.riderStatus,
+        },
+      ];
+    }
+    return [];
+  }, [shipment]);
+
+  const metaRows = useMemo(() => {
+    if (!shipment) return [];
+    return [
+      { label: "Shipment ID", value: shipment?._id || id },
+      { label: "Status", value: shipment?.status || "N/A" },
+      { label: "Rider Status", value: shipment?.riderStatus || "N/A" },
+      { label: "Package Type", value: shipment?.packageType || "N/A" },
+      {
+        label: "Weight",
+        value:
+          shipment?.weight !== undefined && shipment?.weight !== null
+            ? `${shipment.weight}`
+            : "N/A",
+      },
+      {
+        label: "Min Temp",
+        value:
+          shipment?.minTemp !== undefined && shipment?.minTemp !== null
+            ? `${shipment.minTemp}`
+            : "N/A",
+      },
+      {
+        label: "Max Temp",
+        value:
+          shipment?.maxTemp !== undefined && shipment?.maxTemp !== null
+            ? `${shipment.maxTemp}`
+            : "N/A",
+      },
+      {
+        label: "COD Amount",
+        value:
+          shipment?.codAmount !== undefined && shipment?.codAmount !== null
+            ? `${shipment.codAmount}`
+            : "N/A",
+      },
+      {
+        label: "Delivery Charges",
+        value:
+          shipment?.delieveryCharges !== undefined &&
+          shipment?.delieveryCharges !== null
+            ? `${shipment.delieveryCharges}`
+            : "N/A",
+      },
+      {
+        label: "Use Wallet",
+        value:
+          shipment?.useWallet === true
+            ? "Yes"
+            : shipment?.useWallet === false
+              ? "No"
+              : "N/A",
+      },
+      {
+        label: "IoT Device ID",
+        value: shipment?.iotDeviceId || "N/A",
+      },
+      {
+        label: "IoT Status",
+        value: shipment?.iotStatus || "N/A",
+      },
+      {
+        label: "Created At",
+        value: formatDateTime(shipment?.createdAt),
+      },
+      {
+        label: "Updated At",
+        value: formatDateTime(shipment?.updatedAt),
+      },
+    ];
+  }, [shipment, id]);
 
   const handleSelectShipment = (event) => {
     const nextId = event.target.value;
@@ -97,376 +284,317 @@ export default function ShipmentDetails() {
     }
   };
 
-  const statusColor = shipment
-    ? STATUS_COLOR[shipment.status] || "text-gray-700"
-    : "text-gray-700";
-
-  useEffect(() => {
-    setMapError("");
-    if (!shipment || !mapContainerRef.current) return;
-
-    let isMounted = true;
-
-    const initMap = async () => {
-      try {
-        const L = await loadLeaflet();
-        if (!isMounted || !L || !mapContainerRef.current) return;
-
-        if (mapAnimationRef.current) {
-          clearInterval(mapAnimationRef.current);
-          mapAnimationRef.current = null;
-        }
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.remove();
-          mapInstanceRef.current = null;
-        }
-
-        const routePoints = shipment.coordinates?.path ?? [];
-        const fallback =
-          routePoints[0] || shipment.coordinates?.center || DEFAULT_CENTER;
-        const map = L.map(mapContainerRef.current, {
-          zoomControl: false,
-          attributionControl: false,
-        }).setView(
-          [fallback.lat, fallback.lng],
-          shipment.coordinates?.zoom ?? 11
-        );
-        mapInstanceRef.current = map;
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: "© OpenStreetMap contributors",
-          maxZoom: 19,
-        }).addTo(map);
-
-        const latLngs = routePoints.map((pt) => [pt.lat, pt.lng]);
-        if (latLngs.length > 1) {
-          const routeLine = L.polyline(latLngs, {
-            color: "#38bdf8",
-            weight: 4,
-            opacity: 0.9,
-          }).addTo(map);
-          map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
-        }
-
-        if (latLngs.length) {
-          const markerIcon = L.divIcon({
-            className: "",
-            html: `<div style="width:20px;height:20px;border-radius:9999px;background:#facc15;border:3px solid #0f172a;box-shadow:0 0 18px rgba(250,204,21,0.75);"></div>`,
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-          });
-          const marker = L.marker(latLngs[0], { icon: markerIcon }).addTo(map);
-          mapMarkerRef.current = marker;
-
-          if (latLngs.length > 1) {
-            let step = 0;
-            mapAnimationRef.current = window.setInterval(() => {
-              step = (step + 1) % latLngs.length;
-              if (mapMarkerRef.current) {
-                mapMarkerRef.current.setLatLng(latLngs[step]);
-              }
-            }, 3500);
-          }
-        }
-      } catch (error) {
-        if (isMounted) {
-          setMapError(
-            "Unable to load the live map right now. Please try again shortly."
-          );
-        }
-      }
-    };
-
-    initMap();
-
-    return () => {
-      isMounted = false;
-      if (mapAnimationRef.current) {
-        clearInterval(mapAnimationRef.current);
-        mapAnimationRef.current = null;
-      }
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-      mapMarkerRef.current = null;
-    };
-  }, [shipment?.id]);
-
   return (
     <div className="min-h-screen bg-light customer-page">
       <Topbar />
 
       <div className="customer-shell customer-stack p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
-        {/* TOP BAR: SHIPMENT SELECTOR */}
         <div className="flex flex-col gap-4 mb-4 md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-gray-500">
-            Select a shipment to view its live telemetry, route, IoT data, and
-            alerts.
+            Select a shipment to view its details, telemetry, and IoT history.
           </p>
 
-            <select
-              value={shipment?.id ?? ""}
-              onChange={handleSelectShipment}
-              className="customer-input px-4 py-3 rounded-lg bg-white border outline-none focus:border-primary"
-            >
-              <option value="" disabled>
-                Select shipment
-              </option>
-              {shipments.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.id} ({s.status})
+          <select
+            value={shipmentId}
+            onChange={handleSelectShipment}
+            className="customer-input px-4 py-3 rounded-lg bg-white border outline-none focus:border-primary"
+          >
+            <option value="" disabled>
+              {isListLoading ? "Loading shipments..." : "Select shipment"}
+            </option>
+            {shipments.map((item) => {
+              const optionId = item?._id || item?.id;
+              if (!optionId) return null;
+              return (
+                <option key={optionId} value={optionId}>
+                  {optionId} ({item?.status || "Pending"})
                 </option>
-              ))}
-            </select>
+              );
+            })}
+          </select>
         </div>
 
-        {/* TITLE */}
+        {listError ? (
+          <div className="customer-card bg-white p-4 rounded-xl shadow text-sm text-red-600 mb-6">
+            {listError}
+          </div>
+        ) : null}
+
         <h1 className="text-2xl font-bold text-primary mb-6">
-          Shipment Details {shipment ? `- ${shipment.id}` : ""}
+          Shipment Details {shipmentId ? `- ${shipmentId}` : ""}
         </h1>
 
-          {!shipment ? (
-            <div className="customer-card bg-white p-6 rounded-xl shadow text-gray-600">
-              Pick a shipment from the dropdown above to load route,
-              temperature, shock & alert data.
+        {isLoading ? (
+          <div className="customer-card bg-white p-6 rounded-xl shadow text-sm text-gray-500">
+            <span className="loading loading-spinner loading-sm" /> Loading
+            shipment...
+          </div>
+        ) : loadError ? (
+          <div className="customer-card bg-white p-6 rounded-xl shadow text-sm text-red-600">
+            {loadError}
+          </div>
+        ) : shipment ? (
+          <div className="space-y-8">
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Live Map & Sensor Data
+              </h2>
+
+              <div className="relative w-full h-[420px] bg-gray-200 rounded-xl overflow-hidden flex items-center justify-center text-gray-500">
+                Live map data will appear here.
+                <div className="absolute top-6 left-6 bg-white shadow-xl px-5 py-3 rounded-xl border">
+                  <p className="text-sm text-gray-600">Temperature</p>
+                  <p className="text-3xl font-bold text-red-600">
+                    {temperatureValue !== null && temperatureValue !== undefined
+                      ? `${temperatureValue}${temperatureUnit}`
+                      : "--"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {formatTempBand(shipment?.minTemp, shipment?.maxTemp)}
+                  </p>
+                </div>
+                <div className="absolute top-6 right-6 bg-white shadow-xl px-5 py-3 rounded-xl border">
+                  <p className="text-sm text-gray-600">Shock</p>
+                  <p className="text-xl font-bold text-yellow-600">
+                    {shipment?.shock?.level || "--"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {shipment?.shock?.note || "No data"}
+                  </p>
+                </div>
+                <div className="absolute bottom-6 right-6 bg-white shadow-xl px-5 py-3 rounded-xl border">
+                  <p className="text-sm text-gray-600">Humidity</p>
+                  <p className="text-xl font-bold text-blue-600">
+                    {humidityValue !== null && humidityValue !== undefined
+                      ? `${humidityValue}%`
+                      : "--"}
+                  </p>
+                </div>
+              </div>
             </div>
-          ) : (
-            <>
-              {/* ============================= */}
-              {/* FULL WIDTH MAP SECTION        */}
-              {/* ============================= */}
-              {/* FULL-WIDTH MAP + SENSOR SUMMARY */}
-              <div className="customer-card bg-white p-6 shadow rounded-2xl mb-10">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-xl font-bold text-primary">
-                    Live Location & Sensor Data
-                  </h2>
-                  <span className="text-sm font-semibold text-gray-500">
-                    Updated {shipment.updatedAt ?? "2 mins ago"}
-                  </span>
-                </div>
 
-                <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-                  <div
-                    className="relative min-h-[320px] md:min-h-[420px] rounded-2xl border border-slate-100 overflow-hidden bg-slate-900"
-                    style={MAP_BACKGROUND_STYLE}
-                  >
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-primary">IoT Alerts</h2>
+                  <p className="text-sm text-gray-600">
+                    Temperature, shock, and humidity breach notifications.
+                  </p>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs bg-amber-50 text-amber-700">
+                  {alerts.length} alert{alerts.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              {alerts.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  No alerts recorded for this shipment.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {alerts.map((alert, index) => (
                     <div
-                      key={shipment.id}
-                      ref={mapContainerRef}
-                      className="absolute inset-0 h-full w-full"
-                    />
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-900/5 via-transparent to-slate-900/40" />
-
-                    <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-wrap gap-3 text-xs font-semibold uppercase tracking-wide text-white/80">
-                      <span className="rounded-full bg-white/10 px-3 py-1 backdrop-blur">
-                        Origin: {shipment.origin}
-                      </span>
-                      <span className="rounded-full bg-white/10 px-3 py-1 backdrop-blur">
-                        Destination: {shipment.destination}
-                      </span>
-                      <span className="rounded-full bg-white/10 px-3 py-1 backdrop-blur">
-                        Rider: {shipment.rider}
-                      </span>
-                      <span className="rounded-full bg-white/10 px-3 py-1 backdrop-blur">
-                        Status: {shipment.status}
-                      </span>
-                    </div>
-
-                    <div className="pointer-events-none absolute bottom-4 left-4 right-4">
-                      <div className="h-2 rounded-full bg-white/20 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-300"
-                          style={{ width: `${routeProgress}%` }}
-                        />
+                      key={alert?.id || alert?._id || index}
+                      className="border border-slate-100 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white/70"
+                    >
+                      <div>
+                        <p className="text-xs text-gray-500">
+                          {alert?.time ||
+                            alert?.timestamp ||
+                            alert?.createdAt ||
+                            "Timestamp unavailable"}
+                        </p>
+                        <p className="font-semibold text-slate-900">
+                          {alert?.type || "Alert"}{" "}
+                          {alert?.shipmentId ? `- ${alert.shipmentId}` : ""}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {alert?.message || alert?.note || "No details."}
+                        </p>
+                        {alert?.location ? (
+                          <p className="text-xs text-gray-500">
+                            {alert.location}
+                          </p>
+                        ) : null}
                       </div>
-                      {routeStops.length > 0 && (
-                        <div className="grid grid-cols-1 gap-3 mt-4 text-center text-[0.6rem] font-semibold uppercase tracking-wide text-white/80 sm:grid-cols-3 lg:grid-cols-5">
-                          {routeStops.map((stop) => (
-                            <div
-                              key={stop}
-                              className="flex flex-col items-center gap-1"
-                            >
-                              <div className="h-2 w-2 rounded-full bg-white" />
-                              <p>{stop}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <span className="text-xs px-3 py-1 rounded-full bg-amber-50 text-amber-700">
+                        {alert?.severity || alert?.level || "Info"}
+                      </span>
                     </div>
-
-                    {mapError && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-900/70 text-center text-sm font-medium text-white px-6">
-                        {mapError}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="grid gap-4">
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5 shadow-sm">
-                      <p className="text-xs uppercase tracking-wider text-slate-500">
-                        Temperature
-                      </p>
-                      <p className="text-4xl font-bold text-slate-900 leading-tight">
-                        {shipment.temperature.current}
-                        <span className="text-lg align-super ml-1 text-slate-500">
-                          {temperatureUnit}
-                        </span>
-                      </p>
-                      <p className="text-xs text-slate-500 mt-2">
-                        Target band 8{"\u00b0"}C - 15{"\u00b0"}C
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                      <p className="text-xs uppercase tracking-wider text-slate-500">
-                        Shock Level
-                      </p>
-                      <p className="text-3xl font-bold text-amber-500">
-                        {shipment.shock.level}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-2">
-                        {shipment.shock.note}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                      <p className="text-xs uppercase tracking-wider text-slate-500">
-                        Humidity / Alerts
-                      </p>
-                      <p className="text-3xl font-bold text-slate-900">
-                        {humidityValue}
-                        <span className="text-lg font-semibold ml-1">% RH</span>
-                      </p>
-                      <p className="text-xs text-slate-500 mt-2">
-                        {shipment.alerts.length} active alerts
-                      </p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              </div>
+              )}
+            </div>
 
-              {/* ============================= */}
-              {/* SHIPMENT INFORMATION          */}
-              {/* ============================= */}
-              <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
-                <h2 className="text-xl font-bold text-primary mb-4">
-                  Shipment Information
-                </h2>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <p>
-                    <strong>Sender:</strong> {shipment.sender}
-                  </p>
-                  <p>
-                    <strong>Receiver:</strong> {shipment.receiver}
-                  </p>
-                  <p>
-                    <strong>Origin:</strong> {shipment.origin}
-                  </p>
-                  <p>
-                    <strong>Destination:</strong> {shipment.destination}
-                  </p>
-
-                  <p>
-                    <strong>Status:</strong>{" "}
-                    <span className={`font-semibold ${statusColor}`}>
-                      {shipment.status}
-                    </span>
-                  </p>
-
-                  <p>
-                    <strong>ETA:</strong> {shipment.eta}
-                  </p>
-                  <p>
-                    <strong>Rider:</strong> {shipment.rider}
-                  </p>
-                  <p>
-                    <strong>Shipment Type:</strong> {shipment.type}
-                  </p>
-                </div>
-              </div>
-
-              {/* ============================= */}
-              {/* TIMELINE                      */}
-              {/* ============================= */}
-              <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
-                <h2 className="text-xl font-bold text-primary mb-4">
-                  Shipment Timeline
-                </h2>
-
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Delivery Timeline
+              </h2>
+              {timelineEntries.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  No timeline events recorded yet.
+                </p>
+              ) : (
                 <ul className="space-y-4">
-                  {shipment.timeline.map((event) => (
+                  {timelineEntries.map((entry, index) => (
                     <li
-                      key={`${shipment.id}-${event.timestamp}`}
-                      className="border-l-4 border-primary pl-4"
+                      key={entry?.id || entry?._id || `${entry?.label}-${index}`}
+                      className="flex flex-col sm:flex-row sm:items-start gap-3"
                     >
-                      <p className="font-semibold">{event.label}</p>
-                      <p className="text-gray-500 text-sm">{event.timestamp}</p>
+                      <div className="flex items-center gap-3">
+                        <span className="h-3 w-3 rounded-full bg-primary/80 mt-1" />
+                        <p className="font-semibold text-gray-800">
+                          {entry?.label || "Timeline update"}
+                        </p>
+                      </div>
+                      <p className="text-sm text-gray-500 sm:ml-auto">
+                        {entry?.timestamp
+                          ? new Date(entry.timestamp).toLocaleString()
+                          : "Timestamp unavailable"}
+                      </p>
                     </li>
                   ))}
                 </ul>
+              )}
+            </div>
+
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Shipment Information
+              </h2>
+
+              <div className="grid md:grid-cols-2 gap-6 text-gray-700">
+                {metaRows.map((row) => (
+                  <p key={row.label}>
+                    <strong>{row.label}:</strong> {row.value}
+                  </p>
+                ))}
               </div>
+            </div>
 
-              {/* ============================= */}
-              {/* BLOCKCHAIN                    */}
-              {/* ============================= */}
-              <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
-                <h2 className="text-xl font-bold text-primary mb-4">
-                  Blockchain Verification
-                </h2>
-
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b bg-gray-50 text-gray-600">
-                      <th className="p-3">Event</th>
-                      <th className="p-3">Hash</th>
-                      <th className="p-3">Block</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    <tr className="border-b">
-                      <td className="p-3">Picked Up</td>
-                      <td className="p-3 text-primary">0xA3F...21C</td>
-                      <td className="p-3">123442</td>
-                    </tr>
-
-                    <tr className="border-b">
-                      <td className="p-3">Warehouse Out</td>
-                      <td className="p-3 text-primary">0xBB1...94E</td>
-                      <td className="p-3">123498</td>
-                    </tr>
-
-                    <tr>
-                      <td className="p-3">In Transit</td>
-                      <td className="p-3 text-primary">0x8CD...77A</td>
-                      <td className="p-3">123512</td>
-                    </tr>
-                  </tbody>
-                </table>
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Pickup Details
+              </h2>
+              <div className="grid md:grid-cols-2 gap-6 text-gray-700">
+                <p>
+                  <strong>Pickup Address:</strong>{" "}
+                  {shipment?.pickupAddress || "N/A"}
+                </p>
+                <p>
+                  <strong>Pickup City:</strong> {shipment?.pickupCity || "N/A"}
+                </p>
+                <p>
+                  <strong>Pickup Zone:</strong> {shipment?.pickupZone || "N/A"}
+                </p>
               </div>
+            </div>
 
-              {/* ============================= */}
-              {/* ALERTS                        */}
-              {/* ============================= */}
-              <div className="customer-card bg-white p-6 shadow rounded-xl mb-10">
-                <h2 className="text-xl font-bold text-red-500 mb-4">
-                  Active Alerts
-                </h2>
-
-                <ul className="space-y-3">
-                  {shipment.alerts.map((alert) => (
-                    <li
-                      key={`${shipment.id}-${alert}`}
-                      className="bg-red-100 text-red-700 p-3 rounded-lg font-semibold"
-                    >
-                      {alert}
-                    </li>
-                  ))}
-                </ul>
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Delivery Details
+              </h2>
+              <div className="grid md:grid-cols-2 gap-6 text-gray-700">
+                <p>
+                  <strong>Receiver Name:</strong>{" "}
+                  {shipment?.receiverName || "N/A"}
+                </p>
+                <p>
+                  <strong>Receiver Phone:</strong>{" "}
+                  {shipment?.receiverPhone || "N/A"}
+                </p>
+                <p>
+                  <strong>Delivery Address:</strong>{" "}
+                  {shipment?.deliveryAddress || "N/A"}
+                </p>
+                <p>
+                  <strong>Delivery City:</strong>{" "}
+                  {shipment?.deliveryCity || "N/A"}
+                </p>
+                <p>
+                  <strong>Delivery Zone:</strong>{" "}
+                  {shipment?.deliveryZone || "N/A"}
+                </p>
+                <p>
+                  <strong>Notes:</strong> {shipment?.notes || "N/A"}
+                </p>
               </div>
+            </div>
 
-            </>
+            <div className="customer-card bg-white p-6 shadow rounded-xl">
+              <h2 className="text-xl font-bold text-primary mb-4">
+                Rider Information
+              </h2>
+
+              {riderAssignments.length === 0 ? (
+                <p className="text-gray-500">No rider assigned.</p>
+              ) : (
+                <div className="space-y-4">
+                  {riderAssignments.map((task, index) => {
+                    const rider = task?.rider || {};
+                    const riderId =
+                      rider?._id || task?.riderId || task?.rider || "N/A";
+                    return (
+                      <div
+                        key={task?._id || rider?._id || `rider-${index}`}
+                        className="border border-slate-100 rounded-lg p-4 bg-slate-50"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-semibold text-primary">
+                            {rider?.name || shipment?.rider || "Unknown Rider"}
+                          </p>
+                          <span className="text-xs px-3 py-1 rounded-full bg-amber-50 text-amber-700">
+                            {task?.status ||
+                              shipment?.riderStatus ||
+                              "Assigned"}
+                          </span>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-4 text-gray-700 mt-3">
+                          <p>
+                            <strong>Rider ID:</strong> {riderId}
+                          </p>
+                          <p>
+                            <strong>Phone:</strong> {rider?.phone || "N/A"}
+                          </p>
+                          <p>
+                            <strong>Email:</strong> {rider?.email || "N/A"}
+                          </p>
+                          <p>
+                            <strong>City:</strong>{" "}
+                            {rider?.assignedCity || "N/A"}
+                          </p>
+                          <p>
+                            <strong>Zone:</strong>{" "}
+                            {rider?.assignedZone || "N/A"}
+                          </p>
+                          <p>
+                            <strong>Category:</strong>{" "}
+                            {formatCategory(rider?.riderCategory)}
+                          </p>
+                          {task?.assignedTime ? (
+                            <p>
+                              <strong>Assigned At:</strong>{" "}
+                              {new Date(task.assignedTime).toLocaleString()}
+                            </p>
+                          ) : null}
+                          {task?.completedTime ? (
+                            <p>
+                              <strong>Completed At:</strong>{" "}
+                              {new Date(task.completedTime).toLocaleString()}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="customer-card bg-white p-6 rounded-xl shadow text-sm text-gray-500">
+            Shipment not found.
+          </div>
         )}
       </div>
     </div>

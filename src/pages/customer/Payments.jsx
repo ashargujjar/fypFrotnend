@@ -9,16 +9,13 @@ export default function Payments() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [isToppingUp, setIsToppingUp] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
   const token = localStorage.getItem("token");
-  const bankAccounts = [
-    { id: "acct-1", label: "UBL **** 2023" },
-    { id: "acct-2", label: "Meezan **** 1190" },
-  ];
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [selectedAccount, setSelectedAccount] = useState(
-    bankAccounts[0]?.id || ""
-  );
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
 
@@ -120,6 +117,84 @@ export default function Payments() {
     return "bg-gray-100 text-gray-700";
   };
 
+  const handleTopUp = async () => {
+    setActionError("");
+    setActionMessage("");
+    const amount = Number(topUpAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setActionError("Enter a valid amount to add.");
+      return;
+    }
+    if (!token) {
+      setActionError("Missing auth token.");
+      return;
+    }
+
+    try {
+      setIsToppingUp(true);
+      const res = await fetch(`${API_URL}/user/wallet/topup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ amount }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "Unable to add balance.");
+      }
+      setWalletBalance(data?.wallet?.balance ?? walletBalance + amount);
+      setTopUpAmount("");
+      setActionMessage("Balance added successfully.");
+    } catch (error) {
+      setActionError(error?.message || "Unable to add balance.");
+    } finally {
+      setIsToppingUp(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    setActionError("");
+    setActionMessage("");
+    const amount = Number(withdrawAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setActionError("Enter a valid amount to withdraw.");
+      return;
+    }
+    if (amount > walletBalance) {
+      setActionError("Insufficient wallet balance.");
+      return;
+    }
+    if (!token) {
+      setActionError("Missing auth token.");
+      return;
+    }
+
+    try {
+      setIsWithdrawing(true);
+      const res = await fetch(`${API_URL}/user/wallet/withdraw`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ amount }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "Unable to withdraw balance.");
+      }
+      setWalletBalance(data?.wallet?.balance ?? walletBalance - amount);
+      setWithdrawAmount("");
+      setActionMessage("Withdrawal request recorded.");
+    } catch (error) {
+      setActionError(error?.message || "Unable to withdraw balance.");
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-light customer-page">
       <Topbar />
@@ -149,7 +224,7 @@ export default function Payments() {
                 className="customer-button bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                 onClick={() => setShowWithdraw((v) => !v)}
               >
-                {showWithdraw ? "Hide Withdraw" : "Withdraw to Bank"}
+                {showWithdraw ? "Hide Withdraw" : "Withdraw Balance"}
               </button>
             </div>
           </div>
@@ -195,14 +270,18 @@ export default function Payments() {
                   />
                 </label>
                 <div className="flex flex-col justify-center text-sm text-gray-700">
-                  <span className="font-medium">Pay using card / online</span>
+                  <span className="font-medium">Demo top-up (manual)</span>
                   <p className="text-xs text-gray-500 mt-1">
-                    Secure checkout, posts immediately.
+                    No bank needed. This instantly credits your wallet for FYP.
                   </p>
                 </div>
                 <div className="flex items-end">
-                  <button className="customer-button bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex-1">
-                    Add Balance
+                  <button
+                    onClick={handleTopUp}
+                    disabled={isToppingUp}
+                    className="customer-button bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isToppingUp ? "Adding..." : "Add Balance"}
                   </button>
                 </div>
               </div>
@@ -212,20 +291,12 @@ export default function Payments() {
           {showWithdraw && (
             <div className="border border-gray-200 rounded-xl p-4 bg-white space-y-3">
               <div className="grid gap-3 md:grid-cols-3">
-                <label className="flex flex-col gap-1 text-sm text-gray-700">
-                  Send to account
-                  <select
-                    value={selectedAccount}
-                    onChange={(e) => setSelectedAccount(e.target.value)}
-                    className="customer-input border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    {bankAccounts.map((acct) => (
-                      <option key={acct.id} value={acct.id}>
-                        {acct.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="flex flex-col gap-1 text-sm text-gray-700">
+                  Payout method
+                  <div className="customer-input border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-600">
+                    Manual payout (demo only)
+                  </div>
+                </div>
                 <label className="flex flex-col gap-1 text-sm text-gray-700">
                   Amount
                   <input
@@ -239,21 +310,32 @@ export default function Payments() {
                   />
                 </label>
                 <div className="flex items-end gap-2">
-                  <button className="customer-button bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex-1">
-                    Confirm Withdrawal
+                  <button
+                    onClick={handleWithdraw}
+                    disabled={isWithdrawing}
+                    className="customer-button bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isWithdrawing ? "Submitting..." : "Confirm Withdrawal"}
                   </button>
                   <span className="text-xs text-gray-500">
-                    Est. net after fees:{" "}
-                    {formatCurrency(
-                      Math.max(Number(withdrawAmount || 0) * 0.98, 0)
-                    )}
+                    Net amount: {formatCurrency(withdrawAmount || 0)}
                   </span>
                 </div>
               </div>
               <p className="text-xs text-gray-500">
                 Tip: You can also apply this balance directly to new shipments
-                instead of withdrawing to a bank.
+                instead of withdrawing.
               </p>
+            </div>
+          )}
+
+          {(actionMessage || actionError) && (
+            <div
+              className={`text-sm ${
+                actionError ? "text-red-600" : "text-green-600"
+              }`}
+            >
+              {actionError || actionMessage}
             </div>
           )}
         </div>

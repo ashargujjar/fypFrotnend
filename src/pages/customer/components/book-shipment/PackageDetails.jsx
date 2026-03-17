@@ -12,11 +12,25 @@ export default function PackageDetails({ errors, form, handleChange, inputClass 
           className={`${inputClass} ${errors.weight ? "border-red-400" : ""}`}
         />
         <input
+          type="number"
+          placeholder="Min Temp (C)"
+          value={form.minTemp}
+          onChange={(e) => handleChange("minTemp", e.target.value)}
+          className={`${inputClass} ${errors.minTemp ? "border-red-400" : ""}`}
+        />
+        <input
+          type="number"
+          placeholder="Max Temp (C)"
+          value={form.maxTemp}
+          onChange={(e) => handleChange("maxTemp", e.target.value)}
+          className={`${inputClass} ${errors.maxTemp ? "border-red-400" : ""}`}
+        />
+        <input
           type="text"
           placeholder="Package Type (Electronics, Food, etc)"
           value={form.packageType}
           onChange={(e) => handleChange("packageType", e.target.value)}
-          className={`md:col-span-2 ${inputClass} ${
+          className={`md:col-span-3 ${inputClass} ${
             errors.packageType ? "border-red-400" : ""
           }`}
         />

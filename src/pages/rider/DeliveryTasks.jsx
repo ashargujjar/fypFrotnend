@@ -58,6 +58,8 @@ const buildDeliveryTasks = (list) =>
       cod: Number(codAmount) || 0,
       notes: shipment?.notes || "No notes provided.",
       otp,
+      iotDeviceId: shipment?.iotDeviceId || "",
+      iotStatus: shipment?.iotStatus || "none",
       origin_city: shipment?.pickupCity || shipment?.origin_city || "",
       destination_city:
         shipment?.deliveryCity || shipment?.destination_city || "",
@@ -89,11 +91,14 @@ export default function DeliveryTasks() {
     }
 
     let isMounted = true;
+    const refreshIntervalMs = 20000;
 
-    const fetchRiderTasks = async () => {
+    const fetchRiderTasks = async (showLoader = false) => {
       try {
-        setIsLoading(true);
-        setLoadError("");
+        if (showLoader) {
+          setIsLoading(true);
+          setLoadError("");
+        }
         const endpoint = API_URL
           ? `${API_URL}/rider/getRiderTasks`
           : "/rider/getRiderTasks";
@@ -117,21 +122,33 @@ export default function DeliveryTasks() {
                 : [];
         if (isMounted) {
           setTasks(buildDeliveryTasks(list));
+          if (showLoader) setLoadError("");
         }
       } catch (error) {
         if (isMounted) {
-          setLoadError(error?.message || "Unable to load delivery tasks.");
-          setTasks([]);
+          if (showLoader) {
+            setLoadError(error?.message || "Unable to load delivery tasks.");
+            setTasks([]);
+          }
         }
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted && showLoader) setIsLoading(false);
       }
     };
 
-    fetchRiderTasks();
+    fetchRiderTasks(true);
+
+    const interval = setInterval(() => {
+      fetchRiderTasks(false);
+    }, refreshIntervalMs);
+
+    const handleFocus = () => fetchRiderTasks(false);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
     };
   }, [token]);
 
@@ -253,10 +270,71 @@ export default function DeliveryTasks() {
       [id]: {
         deviceId: "",
         status: "Pending detach",
+        isSubmitting: false,
         ...prev[id],
         ...updates,
       },
     }));
+
+  const detachIotDevice = async (shipmentId, deviceId) => {
+    if (!shipmentId) {
+      throw new Error("Missing shipment id.");
+    }
+    if (!token) {
+      throw new Error("Missing auth token.");
+    }
+    const endpoint = API_URL
+      ? `${API_URL}/rider/iot/detach`
+      : "/rider/iot/detach";
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ shipmentId, deviceId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data?.success === false) {
+      throw new Error(data?.message || "Unable to detach IoT device.");
+    }
+    return data;
+  };
+
+  const handleDetachIot = async (task) => {
+    const taskId = task?.id;
+    const shipmentId = task?.shipmentId;
+    if (!taskId || !shipmentId || shipmentId === "-") {
+      toastError("Missing shipment id.");
+      return;
+    }
+    const current = iotDetachMap[taskId];
+    const rawId = current?.deviceId || task?.iotDeviceId || "";
+    const deviceId = String(rawId).trim().toUpperCase();
+    if (!deviceId) {
+      toastError("Enter device ID to detach.");
+      return;
+    }
+    if (current?.isSubmitting) return;
+    updateIotDetach(taskId, {
+      status: "Detaching...",
+      isSubmitting: true,
+      deviceId,
+    });
+
+    try {
+      await detachIotDevice(shipmentId, deviceId);
+      updateIotDetach(taskId, {
+        status: "Device detached",
+        isSubmitting: false,
+        deviceId,
+      });
+      toastSuccess("IoT device detached.");
+    } catch (error) {
+      updateIotDetach(taskId, { status: "Detach failed", isSubmitting: false });
+      toastError(error?.message || "Unable to detach IoT device.");
+    }
+  };
 
   const statusCounts = tasks.reduce(
     (acc, task) => {
@@ -325,6 +403,7 @@ export default function DeliveryTasks() {
               otpError={otpError[task.id]}
               iotDetachState={iotDetachMap[task.id]}
               onIotDetachChange={updateIotDetach}
+              onDetachIot={handleDetachIot}
               updatingStatus={updatingMap[task.id]}
             />
           ))}
@@ -369,6 +448,7 @@ function DeliveryCard({
   otpError,
   iotDetachState,
   onIotDetachChange,
+  onDetachIot,
   updatingStatus,
 }) {
   const statusStyles = {
@@ -385,10 +465,13 @@ function DeliveryCard({
     "bg-slate-50 text-slate-700 border border-slate-200";
   const codLabel = task.cod > 0 ? `Rs ${task.cod}` : "Prepaid";
   const iotDetach = iotDetachState || {
-    deviceId: "",
-    status: "Pending detach",
+    deviceId: task?.iotDeviceId || "",
+    status: task?.iotStatus === "detached" ? "Device detached" : "Pending detach",
+    isSubmitting: false,
   };
-  const isDetached = iotDetach.status === "Device detached";
+  const isDetached =
+    iotDetach.status === "Device detached" || task?.iotStatus === "detached";
+  const isDetaching = Boolean(iotDetach.isSubmitting);
   const normalizedStatus = normalizeStatus(status);
   const currentStep = getDeliveryStepIndex(status);
   const isDone = (stepIndex) => currentStep >= stepIndex;
@@ -548,18 +631,21 @@ function DeliveryCard({
                 className="customer-input border rounded-lg px-3 py-2 col-span-2"
               />
               <button
-                onClick={() =>
-                  onIotDetachChange(task.id, { status: "Device detached" })
-                }
-                className="customer-button bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
+                onClick={() => onDetachIot(task)}
+                disabled={isDetaching || isDetached}
+                className="customer-button bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Detach IoT Device
+                {isDetaching
+                  ? "Detaching..."
+                  : isDetached
+                  ? "Device detached"
+                  : "Detach IoT Device"}
               </button>
             </div>
           </div>
           <button
             onClick={() => onComplete(task)}
-            disabled={!isDetached || isUpdating}
+            disabled={!isDetached || isUpdating || isDetaching}
             className={`customer-button rounded-lg px-3 py-2 w-full disabled:opacity-60 disabled:cursor-not-allowed ${
               isDetached
                 ? "bg-green-600 text-white hover:bg-green-700"

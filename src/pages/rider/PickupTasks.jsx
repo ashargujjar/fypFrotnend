@@ -81,6 +81,8 @@ const buildPickupTasks = (list) =>
           : Array.isArray(task?.iotRequired)
             ? task.iotRequired
             : [],
+        iotDeviceId: shipment?.iotDeviceId || "",
+        iotStatus: shipment?.iotStatus || "none",
         status,
       };
     })
@@ -104,11 +106,14 @@ export default function PickupTasks() {
     }
 
     let isMounted = true;
+    const refreshIntervalMs = 20000;
 
-    const fetchRiderTasks = async () => {
+    const fetchRiderTasks = async (showLoader = false) => {
       try {
-        setIsLoading(true);
-        setLoadError("");
+        if (showLoader) {
+          setIsLoading(true);
+          setLoadError("");
+        }
         const endpoint = API_URL
           ? `${API_URL}/rider/getRiderTasks`
           : "/rider/getRiderTasks";
@@ -132,21 +137,33 @@ export default function PickupTasks() {
                 : [];
         if (isMounted) {
           setTasks(buildPickupTasks(list));
+          if (showLoader) setLoadError("");
         }
       } catch (error) {
         if (isMounted) {
-          setLoadError(error?.message || "Unable to load pickup tasks.");
-          setTasks([]);
+          if (showLoader) {
+            setLoadError(error?.message || "Unable to load pickup tasks.");
+            setTasks([]);
+          }
         }
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted && showLoader) setIsLoading(false);
       }
     };
 
-    fetchRiderTasks();
+    fetchRiderTasks(true);
+
+    const interval = setInterval(() => {
+      fetchRiderTasks(false);
+    }, refreshIntervalMs);
+
+    const handleFocus = () => fetchRiderTasks(false);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
     };
   }, [token]);
   const [statusMap, setStatusMap] = useState({});
@@ -217,10 +234,67 @@ export default function PickupTasks() {
         deviceType: "",
         deviceId: "",
         status: "Not attached",
+        isSubmitting: false,
         ...prev[id],
         ...updates,
       },
     }));
+
+  const attachIotDevice = async (shipmentId, deviceId) => {
+    if (!shipmentId) {
+      throw new Error("Missing shipment id.");
+    }
+    if (!token) {
+      throw new Error("Missing auth token.");
+    }
+    const endpoint = API_URL
+      ? `${API_URL}/rider/iot/attach`
+      : "/rider/iot/attach";
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ shipmentId, deviceId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data?.success === false) {
+      throw new Error(data?.message || "Unable to attach IoT device.");
+    }
+    return data;
+  };
+
+  const handleAttachIot = async (task) => {
+    const taskId = task?.id;
+    const shipmentId = task?.shipmentId;
+    if (!taskId || !shipmentId || shipmentId === "-") {
+      toastError("Missing shipment id.");
+      return;
+    }
+    const current = iotMap[taskId];
+    const rawId = current?.deviceId || task?.iotDeviceId || "";
+    const deviceId = String(rawId).trim().toUpperCase();
+    if (!deviceId) {
+      toastError("Enter device ID to attach.");
+      return;
+    }
+    if (current?.isSubmitting) return;
+    updateIot(taskId, { status: "Attaching...", isSubmitting: true, deviceId });
+
+    try {
+      await attachIotDevice(shipmentId, deviceId);
+      updateIot(taskId, {
+        status: "Device attached",
+        isSubmitting: false,
+        deviceId,
+      });
+      toastSuccess("IoT device attached.");
+    } catch (error) {
+      updateIot(taskId, { status: "Attach failed", isSubmitting: false });
+      toastError(error?.message || "Unable to attach IoT device.");
+    }
+  };
 
   const handleRoute = (task) => {
     navigate("/rider/route", {
@@ -259,6 +333,7 @@ export default function PickupTasks() {
               iotState={iotMap[task.id]}
               onAdvance={advance}
               onIotChange={updateIot}
+              onAttachIot={handleAttachIot}
               onRoute={handleRoute}
               updatingStatus={updatingMap[task.id]}
             />
@@ -295,15 +370,21 @@ function TaskCard({
   iotState,
   onAdvance,
   onIotChange,
+  onAttachIot,
   onRoute,
   updatingStatus,
 }) {
   const iot = iotState || {
-    deviceId: "",
+    deviceId: task?.iotDeviceId || "",
+    status: task?.iotStatus === "attached" ? "Device attached" : "Not attached",
+    isSubmitting: false,
   };
   const requiresIot = (task.iotRequired || []).length > 0;
-  const showIot =
-    requiresIot && normalizeStatus(status).includes("arrived at pickup");
+  const showIot = normalizeStatus(status).includes("arrived at pickup");
+  const isAttached =
+    iot.status === "Device attached" || task?.iotStatus === "attached";
+  const showAttach = showIot && !isAttached;
+  const showAttachedStatus = showIot && isAttached;
   const isUpdating = Boolean(updatingStatus);
   const isActive = (nextStatus) => updatingStatus === nextStatus;
   const currentStep = getPickupStepIndex(status);
@@ -337,11 +418,14 @@ function TaskCard({
         )}
       </div>
 
-      {showIot && (
+      {showAttach && (
         <div className="border rounded-lg p-3 bg-slate-50 space-y-2">
-          <p className="text-sm font-semibold text-primary">
-            Attach IoT Device
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-primary">
+              Attach IoT Device
+            </p>
+            <span className="text-xs text-gray-500">{iot.status}</span>
+          </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <input
               type="text"
@@ -353,16 +437,23 @@ function TaskCard({
               className="customer-input border rounded-lg px-3 py-2 col-span-2"
             />
             <button
-              onClick={() =>
-                onIotChange(task.id, {
-                  status: "Device attached",
-                })
-              }
-              className="customer-button bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
+              onClick={() => onAttachIot(task)}
+              disabled={iot.isSubmitting || isAttached}
+              className="customer-button bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Attach IoT Device
+              {iot.isSubmitting
+                ? "Attaching..."
+                : isAttached
+                ? "Device attached"
+                : "Attach IoT Device"}
             </button>
           </div>
+        </div>
+      )}
+      {showAttachedStatus && (
+        <div className="border rounded-lg p-3 bg-emerald-50 text-emerald-700 text-sm">
+          IoT device attached{(iot.deviceId || task?.iotDeviceId) && ":"}{" "}
+          {iot.deviceId || task?.iotDeviceId}
         </div>
       )}
 

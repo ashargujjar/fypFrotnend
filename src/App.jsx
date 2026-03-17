@@ -23,6 +23,7 @@ import POD from "./pages/rider/POD";
 import RiderProfile from "./pages/rider/RiderProfile";
 import RiderAlerts from "./pages/rider/RiderAlerts";
 import RiderRouteMap from "./pages/rider/RiderRouteMap";
+import RiderAccess from "./pages/rider/components/RiderAccess";
 import Notfound from "./pages/Notfound";
 import PublicTrack from "./pages/public/PublicTrack";
 import AdminProfile from "./pages/admin/AdminProfile";
@@ -78,9 +79,30 @@ function App() {
           element={<Navigate to="/rider/dashboard" replace />}
         />
         <Route path="/rider/dashboard" element={<RiderDashboardHome />} />
-        <Route path="/rider/pickups" element={<PickupTasks />} />
-        <Route path="/rider/linehaul" element={<LinehaulTasks />} />
-        <Route path="/rider/deliveries" element={<DeliveryTasks />} />
+        <Route
+          path="/rider/pickups"
+          element={
+            <RiderAccess allow="pickup">
+              <PickupTasks />
+            </RiderAccess>
+          }
+        />
+        <Route
+          path="/rider/linehaul"
+          element={
+            <RiderAccess allow="linehaul">
+              <LinehaulTasks />
+            </RiderAccess>
+          }
+        />
+        <Route
+          path="/rider/deliveries"
+          element={
+            <RiderAccess allow="delivery">
+              <DeliveryTasks />
+            </RiderAccess>
+          }
+        />
         <Route path="/rider/route" element={<RiderRouteMap />} />
         <Route path="/rider/pod" element={<POD />} />
         <Route path="/rider/profile" element={<RiderProfile />} />

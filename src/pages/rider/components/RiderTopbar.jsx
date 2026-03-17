@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+﻿import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export default function RiderTopbar() {
   const location = useLocation();
@@ -8,6 +8,7 @@ export default function RiderTopbar() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("riderProfile");
     navigate("/login?role=rider");
   };
 
@@ -45,3 +46,4 @@ export default function RiderTopbar() {
     </div>
   );
 }
+

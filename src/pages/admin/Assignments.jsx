@@ -66,6 +66,7 @@ export default function Assignments() {
         },
       });
       const data = await response.json();
+
       console.log("Fetched shipments:", data.shipments || data);
       if (!response.ok) {
         throw new Error(data?.message || "Failed to fetch shipments.");

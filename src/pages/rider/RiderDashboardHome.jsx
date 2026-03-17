@@ -1,12 +1,101 @@
 ﻿import RiderTopbar from "./components/RiderTopbar";
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import useRiderProfile from "./hooks/useRiderProfile";
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function RiderDashboardHome() {
+  const { profile, loading } = useRiderProfile();
+  const token = localStorage.getItem("token");
+  const category = String(profile?.riderCategory || "").toLowerCase();
+  const activeCategory =
+    category === "pickup" || category === "linehaul" || category === "delivery"
+      ? category
+      : "";
+  const [tasksCount, setTasksCount] = useState(0);
+  const [tasksLoading, setTasksLoading] = useState(true);
+
+  useEffect(() => {
+    if (!token) {
+      setTasksLoading(false);
+      setTasksCount(0);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadTasks = async () => {
+      try {
+        setTasksLoading(true);
+        const endpoint = API_URL
+          ? `${API_URL}/rider/getRiderTasks`
+          : "/rider/getRiderTasks";
+        const res = await fetch(endpoint, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Unable to load rider tasks.");
+        }
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.tasks)
+            ? data.tasks
+            : Array.isArray(data?.riderTasks)
+              ? data.riderTasks
+              : Array.isArray(data?.data)
+                ? data.data
+                : [];
+        if (isMounted) setTasksCount(list.length);
+      } catch {
+        if (isMounted) setTasksCount(0);
+      } finally {
+        if (isMounted) setTasksLoading(false);
+      }
+    };
+
+    loadTasks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  const filterByCategory = (items) => {
+    if (!activeCategory) return items;
+    return items.filter(
+      (item) => item.categoryKey === "all" || item.categoryKey === activeCategory
+    );
+  };
+
+  const resolveCount = () => (tasksLoading ? "..." : String(tasksCount));
+  const countForCategory = (key) => {
+    if (!activeCategory) return resolveCount();
+    return activeCategory === key ? resolveCount() : "0";
+  };
+
   const stats = [
-    { title: "Pickup Tasks", value: 2, icon: "PU" },
-    { title: "Linehaul Trips", value: 2, icon: "LH" },
-    { title: "Delivery Tasks", value: 2, icon: "DL" },
-    { title: "Active Alerts", value: 3, icon: "AL" },
+    {
+      title: "Pickup Tasks",
+      value: countForCategory("pickup"),
+      icon: "PU",
+      categoryKey: "pickup",
+    },
+    {
+      title: "Linehaul Trips",
+      value: countForCategory("linehaul"),
+      icon: "LH",
+      categoryKey: "linehaul",
+    },
+    {
+      title: "Delivery Tasks",
+      value: countForCategory("delivery"),
+      icon: "DL",
+      categoryKey: "delivery",
+    },
+    { title: "Active Alerts", value: 3, icon: "AL", categoryKey: "all" },
   ];
 
   const quickActions = [
@@ -17,7 +106,8 @@ export default function RiderDashboardHome() {
       icon: "PU",
       iconClass: "bg-primary",
       orbClass: "bg-primary/10",
-      count: 2,
+      count: countForCategory("pickup"),
+      categoryKey: "pickup",
     },
     {
       title: "Linehaul / Hub Transfer",
@@ -26,7 +116,8 @@ export default function RiderDashboardHome() {
       icon: "LH",
       iconClass: "bg-amber-500",
       orbClass: "bg-amber-200/40",
-      count: 2,
+      count: countForCategory("linehaul"),
+      categoryKey: "linehaul",
     },
     {
       title: "Delivery Tasks",
@@ -35,9 +126,32 @@ export default function RiderDashboardHome() {
       icon: "DL",
       iconClass: "bg-emerald-500",
       orbClass: "bg-emerald-200/40",
-      count: 2,
+      count: countForCategory("delivery"),
+      categoryKey: "delivery",
     },
   ];
+
+  const flowGuidance = [
+    {
+      key: "pickup",
+      text: "Pickups: Start -> Arrive -> Confirm Pickup -> Hand off to hub.",
+    },
+    {
+      key: "linehaul",
+      text: "Linehaul: Start Trip -> Reach Destination Hub -> Upload manifest.",
+    },
+    {
+      key: "delivery",
+      text:
+        "Delivery: Start Delivery -> Arrived -> Collect OTP/Signature -> POD photo -> Deliver.",
+    },
+  ];
+
+  const visibleStats = filterByCategory(stats);
+  const visibleActions = filterByCategory(quickActions);
+  const visibleGuidance = activeCategory
+    ? flowGuidance.filter((item) => item.key === activeCategory)
+    : flowGuidance;
 
   return (
     <div className="min-h-screen bg-light customer-page">
@@ -50,10 +164,15 @@ export default function RiderDashboardHome() {
             Pickup rider != Linehaul rider != Delivery rider. Intercity legs stay
             in linehaul; city drops appear only after destination hub scan.
           </p>
+          {loading && (
+            <p className="text-xs text-gray-500">
+              Loading your rider category...
+            </p>
+          )}
         </div>
 
         <div className="customer-stack grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {stats.map((stat) => (
+          {visibleStats.map((stat) => (
             <StatCard
               key={stat.title}
               title={stat.title}
@@ -66,7 +185,7 @@ export default function RiderDashboardHome() {
         <div>
           <h2 className="text-xl font-bold text-primary mb-4">Quick Actions</h2>
           <div className="customer-stack grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {quickActions.map((action) => (
+            {visibleActions.map((action) => (
               <Link
                 key={action.to}
                 to={action.to}
@@ -115,12 +234,9 @@ export default function RiderDashboardHome() {
           <div className="customer-card bg-white p-6 shadow rounded-xl">
             <h2 className="text-lg font-bold text-primary mb-3">Flow Guidance</h2>
             <ul className="list-disc list-inside text-gray-700 space-y-1 text-sm">
-              <li>Pickups: Start -> Arrive -> Confirm Pickup -> Hand off to hub.</li>
-              <li>Linehaul: Start Trip -> Reach Destination Hub -> Upload manifest.</li>
-              <li>
-                Delivery: Start Delivery -> Arrived -> Collect OTP/Signature ->
-                POD photo -> Deliver.
-              </li>
+              {visibleGuidance.map((item) => (
+                <li key={item.key}>{item.text}</li>
+              ))}
             </ul>
           </div>
         </div>

@@ -1,57 +1,212 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RiderTopbar from "./components/RiderTopbar";
+import { toastError, toastSuccess } from "../../utils/toast";
+const API_URL = import.meta.env.VITE_API_URL;
 
-const demoPickups = [
-  {
-    id: "PK-1201",
-    shipmentId: "SS-22001",
-    pickupAddress: "Johar Town, Lahore",
-    contact: "+92 300 1234567",
-    notes: "Keep upright; fragile glassware",
-    origin_city: "Lahore",
-    destination_city: "Lahore",
-    iotRequired: ["GPS", "Shock"],
-  },
-  {
-    id: "PK-1202",
-    shipmentId: "SS-22002",
-    pickupAddress: "Gulberg II, Lahore",
-    contact: "+92 302 9876543",
-    notes: "Collect COD Rs 1500 at pickup",
-    origin_city: "Lahore",
-    destination_city: "Lahore",
-    iotRequired: ["Temperature"],
-  },
-  {
-    id: "PK-1203",
-    shipmentId: "SS-22003",
-    pickupAddress: "Civil Lines, Faisalabad",
-    contact: "+92 300 5552211",
-    notes: "Temperature-controlled box",
-    origin_city: "Faisalabad",
-    destination_city: "Karachi",
-    iotRequired: ["GPS", "Temperature"],
-  },
-];
+const normalize = (value) => String(value || "").trim();
+const normalizeStatus = (value) => normalize(value).toLowerCase();
+
+const getPickupStepIndex = (value) => {
+  const status = normalizeStatus(value);
+  if (!status) return -1;
+  if (
+    status.includes("dropped at origin hub") ||
+    status.includes("dropped at warehouse") ||
+    status.includes("droped at warehouse")
+  ) {
+    return 3;
+  }
+  if (status.includes("pickup completed")) return 2;
+  if (status.includes("arrived at pickup")) return 1;
+  if (status.includes("on the way") || status.includes("pickup in progress")) {
+    return 0;
+  }
+  return -1;
+};
+
+const normalizeId = (value) => {
+  if (!value) return "";
+  if (typeof value === "object") {
+    if (value.$oid) return normalize(value.$oid);
+    if (value._id) return normalizeId(value._id);
+    if (value.id) return normalizeId(value.id);
+  }
+  return normalize(value);
+};
+
+const resolveShipment = (task) => {
+  if (task?.shipment && typeof task.shipment === "object") return task.shipment;
+  if (task?.shipmentId && typeof task.shipmentId === "object")
+    return task.shipmentId;
+  return null;
+};
+
+const isSameCity = (origin, destination) => {
+  const originCity = normalize(origin).toLowerCase();
+  const destinationCity = normalize(destination).toLowerCase();
+  if (!originCity || !destinationCity) return true;
+  return originCity === destinationCity;
+};
+
+const buildPickupTasks = (list) =>
+  list
+    .map((task, index) => {
+      const shipment = resolveShipment(task);
+      const shipmentId = normalizeId(
+        shipment?._id || shipment?.id || task?.shipmentId,
+      );
+      const taskId = normalizeId(task?._id || task?.id) || `PK-${index + 1}`;
+      const pickupCity = shipment?.pickupCity || shipment?.origin_city || "";
+      const deliveryCity =
+        shipment?.deliveryCity || shipment?.destination_city || "";
+      const notes = normalize(shipment?.notes || shipment?.note);
+      const status =
+        task?.status || shipment?.riderStatus || shipment?.status || "Assigned";
+
+      return {
+        id: taskId,
+        shipmentId: shipmentId || "-",
+        pickupAddress: shipment?.pickupAddress || "N/A",
+        contact:
+          shipment?.receiverPhone ||
+          shipment?.contact ||
+          shipment?.phone ||
+          "N/A",
+        notes: notes || "No notes provided.",
+        origin_city: pickupCity,
+        destination_city: deliveryCity,
+        iotRequired: Array.isArray(shipment?.iotRequired)
+          ? shipment.iotRequired
+          : Array.isArray(task?.iotRequired)
+            ? task.iotRequired
+            : [],
+        status,
+      };
+    })
+    .filter((task) => isSameCity(task.origin_city, task.destination_city));
 
 export default function PickupTasks() {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState(
-    demoPickups.filter(
-      (t) => t.origin_city === t.destination_city
-    )
-  );
+  const [tasks, setTasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [updatingMap, setUpdatingMap] = useState({});
+  const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    if (!token) {
+      setIsLoading(false);
+      setLoadError("Missing auth token.");
+      setTasks([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchRiderTasks = async () => {
+      try {
+        setIsLoading(true);
+        setLoadError("");
+        const endpoint = API_URL
+          ? `${API_URL}/rider/getRiderTasks`
+          : "/rider/getRiderTasks";
+        const res = await fetch(endpoint, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Unable to load pickup tasks.");
+        }
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.tasks)
+            ? data.tasks
+            : Array.isArray(data?.riderTasks)
+              ? data.riderTasks
+              : Array.isArray(data?.data)
+                ? data.data
+                : [];
+        if (isMounted) {
+          setTasks(buildPickupTasks(list));
+        }
+      } catch (error) {
+        if (isMounted) {
+          setLoadError(error?.message || "Unable to load pickup tasks.");
+          setTasks([]);
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    fetchRiderTasks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
   const [statusMap, setStatusMap] = useState({});
   const [iotMap, setIotMap] = useState({});
 
   const setStatus = (id, status) =>
     setStatusMap((prev) => ({ ...prev, [id]: status }));
 
-  const advance = (id, status) => {
-    setStatus(id, status);
-    if (status === "Dropped at Origin Hub") {
-      setTasks((prev) => prev.filter((t) => t.id !== id));
+  const updateShipmentStatus = async (shipmentId, status) => {
+    if (!shipmentId) {
+      throw new Error("Missing shipment id.");
+    }
+    if (!token) {
+      throw new Error("Missing auth token.");
+    }
+    const endpoint = API_URL
+      ? `${API_URL}/rider/updateShipmentStatus/${shipmentId}`
+      : `/rider/updateShipmentStatus/${shipmentId}`;
+    const res = await fetch(endpoint, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data?.success === false) {
+      throw new Error(data?.message || "Unable to update shipment status.");
+    }
+    return data;
+  };
+
+  const advance = async (task, status) => {
+    const taskId = task?.id;
+    const shipmentId = task?.shipmentId;
+    if (!taskId) return;
+    if (updatingMap[taskId]) return;
+
+    const previousStatus = statusMap[taskId] || task?.status || "Assigned";
+    setActionError("");
+    setUpdatingMap((prev) => ({ ...prev, [taskId]: status }));
+    setStatus(taskId, status);
+
+    try {
+      await updateShipmentStatus(shipmentId, status);
+      toastSuccess(`Status updated: ${status}`);
+      if (status === "Dropped at Origin Hub") {
+        setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      }
+    } catch (error) {
+      setStatus(taskId, previousStatus);
+      setActionError(error?.message || "Unable to update shipment status.");
+      toastError(error?.message || "Unable to update shipment status.");
+    } finally {
+      setUpdatingMap((prev) => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
     }
   };
 
@@ -100,14 +255,30 @@ export default function PickupTasks() {
             <TaskCard
               key={task.id}
               task={task}
-              status={statusMap[task.id] || "Assigned"}
+              status={statusMap[task.id] || task.status || "Assigned"}
               iotState={iotMap[task.id]}
               onAdvance={advance}
               onIotChange={updateIot}
               onRoute={handleRoute}
+              updatingStatus={updatingMap[task.id]}
             />
           ))}
-          {tasks.length === 0 && (
+          {actionError && !isLoading && (
+            <div className="customer-card bg-white rounded-xl p-4 text-center text-red-600 col-span-full">
+              {actionError}
+            </div>
+          )}
+          {isLoading && (
+            <div className="customer-card bg-white rounded-xl p-6 text-center text-gray-500 col-span-full">
+              Loading pickup tasks...
+            </div>
+          )}
+          {!isLoading && loadError && (
+            <div className="customer-card bg-white rounded-xl p-6 text-center text-red-600 col-span-full">
+              {loadError}
+            </div>
+          )}
+          {!isLoading && !loadError && tasks.length === 0 && (
             <div className="customer-card bg-white rounded-xl p-6 text-center text-gray-500 col-span-full">
               No pickup tasks. Awaiting dispatch from admin.
             </div>
@@ -118,12 +289,26 @@ export default function PickupTasks() {
   );
 }
 
-function TaskCard({ task, status, iotState, onAdvance, onIotChange, onRoute }) {
+function TaskCard({
+  task,
+  status,
+  iotState,
+  onAdvance,
+  onIotChange,
+  onRoute,
+  updatingStatus,
+}) {
   const iot = iotState || {
     deviceId: "",
   };
   const requiresIot = (task.iotRequired || []).length > 0;
-  const showIot = requiresIot && status === "Arrived at Pickup";
+  const showIot =
+    requiresIot && normalizeStatus(status).includes("arrived at pickup");
+  const isUpdating = Boolean(updatingStatus);
+  const isActive = (nextStatus) => updatingStatus === nextStatus;
+  const currentStep = getPickupStepIndex(status);
+  const isDone = (stepIndex) => currentStep >= stepIndex;
+  const isUnlocked = (stepIndex) => currentStep >= stepIndex - 1;
 
   return (
     <div className="customer-card customer-card-elevate bg-white rounded-xl p-5 space-y-3">
@@ -182,33 +367,74 @@ function TaskCard({ task, status, iotState, onAdvance, onIotChange, onRoute }) {
       )}
 
       <div className="grid grid-cols-2 gap-2 text-sm">
-        <button
-          onClick={() => onAdvance(task.id, "On the Way")}
-          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
-        >
-          Start Pickup
-        </button>
-        <button
-          onClick={() => onAdvance(task.id, "Arrived at Pickup")}
-          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
-        >
-          Arrive
-        </button>
-        <button
-          onClick={() => onAdvance(task.id, "Pickup Completed")}
-          className="customer-button bg-green-600 text-white rounded-lg px-3 py-2 col-span-2 hover:bg-green-700"
-        >
-          Confirm Pickup
-        </button>
-        <button
-          onClick={() => onAdvance(task.id, "Dropped at Origin Hub")}
-          className="customer-button bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg px-3 py-2 col-span-2 hover:bg-emerald-100"
-        >
-          Mark Dropped at Warehouse
-        </button>
+        {!isDone(0) && (
+          <button
+            onClick={() => onAdvance(task, "On the Way")}
+            disabled={isUpdating || !isUnlocked(0)}
+            className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isActive("On the Way") ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="loading loading-spinner loading-xs" />
+                Updating...
+              </span>
+            ) : (
+              "Start Pickup"
+            )}
+          </button>
+        )}
+        {!isDone(1) && (
+          <button
+            onClick={() => onAdvance(task, "Arrived at Pickup")}
+            disabled={isUpdating || !isUnlocked(1)}
+            className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isActive("Arrived at Pickup") ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="loading loading-spinner loading-xs" />
+                Updating...
+              </span>
+            ) : (
+              "Arrive"
+            )}
+          </button>
+        )}
+        {!isDone(2) && (
+          <button
+            onClick={() => onAdvance(task, "Pickup Completed")}
+            disabled={isUpdating || !isUnlocked(2)}
+            className="customer-button bg-green-600 text-white rounded-lg px-3 py-2 col-span-2 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isActive("Pickup Completed") ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="loading loading-spinner loading-xs" />
+                Updating...
+              </span>
+            ) : (
+              "Confirm Pickup"
+            )}
+          </button>
+        )}
+        {!isDone(3) && (
+          <button
+            onClick={() => onAdvance(task, "dropped at origin hub")}
+            disabled={isUpdating || !isUnlocked(3)}
+            className="customer-button bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg px-3 py-2 col-span-2 hover:bg-emerald-100 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isActive("dropped at origin hub") ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="loading loading-spinner loading-xs" />
+                Updating...
+              </span>
+            ) : (
+              "Mark Dropped at Warehouse"
+            )}
+          </button>
+        )}
         <button
           onClick={() => onRoute(task)}
-          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 col-span-2 hover:bg-blue-100"
+          disabled={isUpdating}
+          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 col-span-2 hover:bg-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           View Route to Pickup
         </button>

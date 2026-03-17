@@ -1,59 +1,200 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RiderTopbar from "./components/RiderTopbar";
+import { toastError, toastSuccess } from "../../utils/toast";
+const API_URL = import.meta.env.VITE_API_URL;
 
-const demoDeliveries = [
-  {
-    id: "DL-3301",
-    shipmentId: "SS-22010",
-    dropoff: "DHA Phase 6, Lahore",
-    receiver: "Hassan Malik",
-    cod: 2200,
-    notes: "Call before arrival",
-    otp: "3264",
-    origin_city: "Lahore",
-    destination_city: "Lahore",
-  },
-  {
-    id: "DL-3302",
-    shipmentId: "SS-22011",
-    dropoff: "Bahria Town, Lahore",
-    receiver: "Sara Ahmed",
-    cod: 0,
-    notes: "Prepaid",
-    otp: "1452",
-    origin_city: "Lahore",
-    destination_city: "Lahore",
-  },
-  {
-    id: "DL-3303",
-    shipmentId: "SS-22003",
-    dropoff: "Clifton Block 5, Karachi",
-    receiver: "Umair Siddiqui",
-    cod: 750,
-    notes: "Fragile",
-    otp: "9081",
-    origin_city: "Faisalabad",
-    destination_city: "Karachi",
-  },
-];
+const normalize = (value) => String(value || "").trim();
+const normalizeStatus = (value) => normalize(value).toLowerCase();
+
+const getDeliveryStepIndex = (value) => {
+  const status = normalizeStatus(value);
+  if (!status) return -1;
+  if (status.includes("delivered")) return 4;
+  if (status.includes("pin verified")) return 3;
+  if (status.includes("collecting pin")) return 2;
+  if (status.includes("arrived")) return 1;
+  if (status.includes("out for delivery")) return 0;
+  return -1;
+};
+
+const normalizeId = (value) => {
+  if (!value) return "";
+  if (typeof value === "object") {
+    if (value.$oid) return normalize(value.$oid);
+    if (value._id) return normalizeId(value._id);
+    if (value.id) return normalizeId(value.id);
+  }
+  return normalize(value);
+};
+
+const resolveShipment = (task) => {
+  if (task?.shipment && typeof task.shipment === "object") return task.shipment;
+  if (task?.shipmentId && typeof task.shipmentId === "object")
+    return task.shipmentId;
+  return null;
+};
+
+const buildDeliveryTasks = (list) =>
+  list.map((task, index) => {
+    const shipment = resolveShipment(task);
+    const shipmentId = normalizeId(
+      shipment?._id || shipment?.id || task?.shipmentId,
+    );
+    const taskId = normalizeId(task?._id || task?.id) || `DL-${index + 1}`;
+    const codAmount = shipment?.codAmount ?? shipment?.cod ?? 0;
+    const otp = shipment?.otp || shipment?.deliveryOtp || shipment?.pin || "";
+    const status =
+      task?.status ||
+      shipment?.riderStatus ||
+      shipment?.status ||
+      "Assigned";
+
+    return {
+      id: taskId,
+      shipmentId: shipmentId || "-",
+      dropoff: shipment?.deliveryAddress || "N/A",
+      receiver: shipment?.receiverName || "N/A",
+      cod: Number(codAmount) || 0,
+      notes: shipment?.notes || "No notes provided.",
+      otp,
+      origin_city: shipment?.pickupCity || shipment?.origin_city || "",
+      destination_city:
+        shipment?.deliveryCity || shipment?.destination_city || "",
+      status,
+    };
+  });
 
 export default function DeliveryTasks() {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState(demoDeliveries);
+  const [tasks, setTasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [updatingMap, setUpdatingMap] = useState({});
   const [statusMap, setStatusMap] = useState({});
   const [otpInputs, setOtpInputs] = useState({});
   const [otpVerified, setOtpVerified] = useState({});
   const [collectingOtp, setCollectingOtp] = useState({});
   const [otpError, setOtpError] = useState({});
   const [iotDetachMap, setIotDetachMap] = useState({});
+  const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    if (!token) {
+      setIsLoading(false);
+      setLoadError("Missing auth token.");
+      setTasks([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchRiderTasks = async () => {
+      try {
+        setIsLoading(true);
+        setLoadError("");
+        const endpoint = API_URL
+          ? `${API_URL}/rider/getRiderTasks`
+          : "/rider/getRiderTasks";
+        const res = await fetch(endpoint, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Unable to load delivery tasks.");
+        }
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.tasks)
+            ? data.tasks
+            : Array.isArray(data?.riderTasks)
+              ? data.riderTasks
+              : Array.isArray(data?.data)
+                ? data.data
+                : [];
+        if (isMounted) {
+          setTasks(buildDeliveryTasks(list));
+        }
+      } catch (error) {
+        if (isMounted) {
+          setLoadError(error?.message || "Unable to load delivery tasks.");
+          setTasks([]);
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    fetchRiderTasks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
 
   const setStatus = (id, status) =>
     setStatusMap((prev) => ({ ...prev, [id]: status }));
 
-  const complete = (id) => {
-    setStatus(id, "Delivered");
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+  const updateShipmentStatus = async (shipmentId, status) => {
+    if (!shipmentId) {
+      throw new Error("Missing shipment id.");
+    }
+    if (!token) {
+      throw new Error("Missing auth token.");
+    }
+    const endpoint = API_URL
+      ? `${API_URL}/rider/updateShipmentStatus/${shipmentId}`
+      : `/rider/updateShipmentStatus/${shipmentId}`;
+    const res = await fetch(endpoint, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data?.success === false) {
+      throw new Error(data?.message || "Unable to update shipment status.");
+    }
+    return data;
+  };
+
+  const advance = async (task, status, { onSuccess, onError } = {}) => {
+    const taskId = task?.id;
+    const shipmentId = task?.shipmentId;
+    if (!taskId) return false;
+    if (updatingMap[taskId]) return false;
+
+    const previousStatus = statusMap[taskId] || task?.status || "Assigned";
+    setActionError("");
+    setUpdatingMap((prev) => ({ ...prev, [taskId]: status }));
+    setStatus(taskId, status);
+
+    try {
+      await updateShipmentStatus(shipmentId, status);
+      toastSuccess(`Status updated: ${status}`);
+      if (status === "Delivered") {
+        setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      }
+      if (onSuccess) onSuccess();
+      return true;
+    } catch (error) {
+      setStatus(taskId, previousStatus);
+      setActionError(error?.message || "Unable to update shipment status.");
+      toastError(error?.message || "Unable to update shipment status.");
+      if (onError) onError(error);
+      return false;
+    } finally {
+      setUpdatingMap((prev) => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
+    }
   };
 
   const handleRoute = (task) => {
@@ -72,7 +213,7 @@ export default function DeliveryTasks() {
     setOtpError((prev) => ({ ...prev, [id]: "" }));
   };
 
-  const handleVerifyOtp = (task) => {
+  const handleVerifyOtp = async (task) => {
     const value = (otpInputs[task.id] || "").trim();
 
     if (value.length !== 4) {
@@ -81,22 +222,29 @@ export default function DeliveryTasks() {
       return;
     }
 
-    if (value === task.otp) {
-      setOtpVerified((prev) => ({ ...prev, [task.id]: true }));
-      setOtpError((prev) => ({ ...prev, [task.id]: "" }));
-      setStatus(task.id, "PIN Verified");
-    } else {
+    if (value !== task.otp) {
       setOtpError((prev) => ({
         ...prev,
         [task.id]: "Incorrect PIN. Try again.",
       }));
       setOtpVerified((prev) => ({ ...prev, [task.id]: false }));
+      return;
+    }
+
+    const ok = await advance(task, "PIN Verified");
+    if (ok) {
+      setOtpVerified((prev) => ({ ...prev, [task.id]: true }));
+      setOtpError((prev) => ({ ...prev, [task.id]: "" }));
+    } else {
+      setOtpVerified((prev) => ({ ...prev, [task.id]: false }));
     }
   };
 
-  const startCollectingOtp = (id) => {
-    setCollectingOtp((prev) => ({ ...prev, [id]: true }));
-    setStatus(id, "Collecting PIN");
+  const startCollectingOtp = async (task) => {
+    const ok = await advance(task, "Collecting PIN");
+    if (ok) {
+      setCollectingOtp((prev) => ({ ...prev, [task.id]: true }));
+    }
   };
 
   const updateIotDetach = (id, updates) =>
@@ -112,16 +260,25 @@ export default function DeliveryTasks() {
 
   const statusCounts = tasks.reduce(
     (acc, task) => {
-      const status = statusMap[task.id] || "Assigned";
+      const rawStatus = statusMap[task.id] || task.status || "Assigned";
+      const status = normalizeStatus(rawStatus);
       acc.total += 1;
-      if (status === "Assigned") acc.assigned += 1;
-      else if (status === "Out for Delivery" || status === "Arrived")
+      if (
+        status === "assigned" ||
+        status === "delivery assigned" ||
+        status === "delivery rider assigned"
+      ) {
+        acc.assigned += 1;
+      } else if (status === "out for delivery" || status === "arrived") {
         acc.inProgress += 1;
-      else if (status === "PIN Verified") acc.verified += 1;
-      else acc.other += 1;
+      } else if (status === "pin verified") {
+        acc.verified += 1;
+      } else {
+        acc.other += 1;
+      }
       return acc;
     },
-    { total: 0, assigned: 0, inProgress: 0, verified: 0, other: 0 }
+    { total: 0, assigned: 0, inProgress: 0, verified: 0, other: 0 },
   );
 
   return (
@@ -155,9 +312,9 @@ export default function DeliveryTasks() {
             <DeliveryCard
               key={task.id}
               task={task}
-              status={statusMap[task.id] || "Assigned"}
-              onComplete={complete}
-              onStatus={setStatus}
+              status={statusMap[task.id] || task.status || "Assigned"}
+              onAdvance={advance}
+              onComplete={(item) => advance(item, "Delivered")}
               onRoute={handleRoute}
               otpValue={otpInputs[task.id] || ""}
               onOtpChange={handleOtpChange}
@@ -168,9 +325,25 @@ export default function DeliveryTasks() {
               otpError={otpError[task.id]}
               iotDetachState={iotDetachMap[task.id]}
               onIotDetachChange={updateIotDetach}
+              updatingStatus={updatingMap[task.id]}
             />
           ))}
-          {tasks.length === 0 && (
+          {actionError && !isLoading && (
+            <div className="customer-card bg-white rounded-xl p-4 text-center text-red-600 col-span-full">
+              {actionError}
+            </div>
+          )}
+          {isLoading && (
+            <div className="customer-card bg-white rounded-xl p-6 text-center text-gray-500 col-span-full">
+              Loading delivery tasks...
+            </div>
+          )}
+          {!isLoading && loadError && (
+            <div className="customer-card bg-white rounded-xl p-6 text-center text-red-600 col-span-full">
+              {loadError}
+            </div>
+          )}
+          {!isLoading && !loadError && tasks.length === 0 && (
             <div className="customer-card bg-white rounded-xl p-6 text-center text-gray-500 col-span-full">
               No delivery tasks yet. Check back after hub receives parcels.
             </div>
@@ -184,7 +357,7 @@ export default function DeliveryTasks() {
 function DeliveryCard({
   task,
   status,
-  onStatus,
+  onAdvance,
   onComplete,
   onRoute,
   otpValue,
@@ -196,6 +369,7 @@ function DeliveryCard({
   otpError,
   iotDetachState,
   onIotDetachChange,
+  updatingStatus,
 }) {
   const statusStyles = {
     Assigned: "bg-slate-50 text-slate-700 border border-slate-200",
@@ -207,13 +381,29 @@ function DeliveryCard({
     Delivered: "bg-green-50 text-green-700 border border-green-100",
   };
   const statusClass =
-    statusStyles[status] || "bg-slate-50 text-slate-700 border border-slate-200";
+    statusStyles[status] ||
+    "bg-slate-50 text-slate-700 border border-slate-200";
   const codLabel = task.cod > 0 ? `Rs ${task.cod}` : "Prepaid";
   const iotDetach = iotDetachState || {
     deviceId: "",
     status: "Pending detach",
   };
   const isDetached = iotDetach.status === "Device detached";
+  const normalizedStatus = normalizeStatus(status);
+  const currentStep = getDeliveryStepIndex(status);
+  const isDone = (stepIndex) => currentStep >= stepIndex;
+  const isUnlocked = (stepIndex) => currentStep >= stepIndex - 1;
+  const isUpdating = Boolean(updatingStatus);
+  const isActive = (nextStatus) => updatingStatus === nextStatus;
+  const isCollectingStatus =
+    normalizedStatus.includes("collecting pin") ||
+    normalizedStatus.includes("pin verified") ||
+    normalizedStatus.includes("delivered");
+  const isVerifiedStatus =
+    normalizedStatus.includes("pin verified") ||
+    normalizedStatus.includes("delivered");
+  const showOtpSection = showOtp || isCollectingStatus;
+  const verified = isVerified || isVerifiedStatus;
 
   return (
     <div className="customer-card customer-card-elevate bg-white rounded-xl p-5 space-y-4 transition">
@@ -239,33 +429,64 @@ function DeliveryCard({
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-sm">
-        <button
-          onClick={() => onStatus(task.id, "Out for Delivery")}
-          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
-        >
-          Start Delivery
-        </button>
-        <button
-          onClick={() => onStatus(task.id, "Arrived")}
-          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100"
-        >
-          Arrived
-        </button>
-        <button
-          onClick={() => startCollectingOtp(task.id)}
-          className="customer-button bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700"
-        >
-          Collect PIN
-        </button>
+        {!isDone(0) && (
+          <button
+            onClick={() => onAdvance(task, "Out for Delivery")}
+            disabled={isUpdating || !isUnlocked(0)}
+            className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isActive("Out for Delivery") ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="loading loading-spinner loading-xs" />
+                Updating...
+              </span>
+            ) : (
+              "Start Delivery"
+            )}
+          </button>
+        )}
+        {!isDone(1) && (
+          <button
+            onClick={() => onAdvance(task, "Arrived")}
+            disabled={isUpdating || !isUnlocked(1)}
+            className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 hover:bg-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isActive("Arrived") ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="loading loading-spinner loading-xs" />
+                Updating...
+              </span>
+            ) : (
+              "Arrived"
+            )}
+          </button>
+        )}
+        {!isDone(2) && (
+          <button
+            onClick={() => startCollectingOtp(task)}
+            disabled={isUpdating || !isUnlocked(2)}
+            className="customer-button bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isActive("Collecting PIN") ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="loading loading-spinner loading-xs" />
+                Updating...
+              </span>
+            ) : (
+              "Collect PIN"
+            )}
+          </button>
+        )}
         <button
           onClick={() => onRoute(task)}
-          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 col-span-2 hover:bg-blue-100"
+          disabled={isUpdating}
+          className="customer-button bg-blue-50 text-primary border border-primary/30 rounded-lg px-3 py-2 col-span-2 hover:bg-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           View Route to Drop-off
         </button>
       </div>
 
-      {showOtp && (
+      {showOtpSection && !isDone(4) && (
         <div className="bg-gray-50 rounded-lg p-3 space-y-2">
           <p className="text-sm font-semibold text-primary">
             Enter 4-digit PIN sent to customer
@@ -281,13 +502,23 @@ function DeliveryCard({
               placeholder="Enter 4-digit PIN"
               className="customer-input border border-gray-300 rounded-lg px-3 py-2 w-44"
             />
-            <button
-              onClick={() => onVerifyOtp(task)}
-              className="customer-button bg-primary text-white px-3 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Verify PIN
-            </button>
-            {isVerified && (
+            {!verified && (
+              <button
+                onClick={() => onVerifyOtp(task)}
+                disabled={isUpdating || !isUnlocked(3)}
+                className="customer-button bg-primary text-white px-3 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isActive("PIN Verified") ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="loading loading-spinner loading-xs" />
+                    Verifying...
+                  </span>
+                ) : (
+                  "Verify PIN"
+                )}
+              </button>
+            )}
+            {verified && (
               <span className="text-green-600 text-sm font-semibold">
                 Verified
               </span>
@@ -297,7 +528,7 @@ function DeliveryCard({
         </div>
       )}
 
-      {isVerified && (
+      {verified && !isDone(4) && (
         <div className="space-y-3">
           <div className="border rounded-lg p-3 bg-slate-50 space-y-2">
             <div className="flex items-center justify-between">
@@ -327,15 +558,22 @@ function DeliveryCard({
             </div>
           </div>
           <button
-            onClick={() => onComplete(task.id)}
-            disabled={!isDetached}
-            className={`customer-button rounded-lg px-3 py-2 w-full ${
+            onClick={() => onComplete(task)}
+            disabled={!isDetached || isUpdating}
+            className={`customer-button rounded-lg px-3 py-2 w-full disabled:opacity-60 disabled:cursor-not-allowed ${
               isDetached
                 ? "bg-green-600 text-white hover:bg-green-700"
-                : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-gray-200 text-gray-500"
             }`}
           >
-            Delivery Completed (POD)
+            {isActive("Delivered") ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="loading loading-spinner loading-xs" />
+                Updating...
+              </span>
+            ) : (
+              "Delivery Completed (POD)"
+            )}
           </button>
         </div>
       )}

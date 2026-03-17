@@ -19,9 +19,44 @@ const STAGE_RIDER_FIELDS = {
   delivery: ["deliveryRider", "delivery_rider", "dropoffRider"],
 };
 
+const STAGE_RIDER_ID_FIELDS = {
+  pickup: [
+    "pickupRiderId",
+    "pickup_rider_id",
+    "pickupRiderID",
+    "riderId",
+    "rider_id",
+  ],
+  linehaul: [
+    "linehaulRiderId",
+    "linehaul_rider_id",
+    "linehaulRiderID",
+    "intercityRiderId",
+    "hubRiderId",
+    "hub_rider_id",
+  ],
+  delivery: [
+    "deliveryRiderId",
+    "delivery_rider_id",
+    "deliveryRiderID",
+    "dropoffRiderId",
+    "dropoff_rider_id",
+  ],
+};
+
 const STAGE_STATUS_RULES = {
   pickup: {
-    eligible: ["pending", "pickup", "on the way"],
+    eligible: [
+      "pending",
+      "unassigned",
+      "pickup",
+      "pickup assigned",
+      "pickup rider assigned",
+      "pickup in progress",
+      "on the way",
+      "arrived at pickup",
+      "pickup completed",
+    ],
     assigned: [
       "pickup rider assigned",
       "pickup assigned",
@@ -37,6 +72,9 @@ const STAGE_STATUS_RULES = {
       "droped at warehouse",
       "dropped at origin hub",
       "linehaul",
+      "linehaul assigned",
+      "linehaul rider assigned",
+      "linehaul in progress",
       "hub transfer",
       "on route",
     ],
@@ -51,6 +89,9 @@ const STAGE_STATUS_RULES = {
     eligible: [
       "dropped at warehouse",
       "droped at warehouse",
+      "dropped at origin hub",
+      "delivery assigned",
+      "delivery rider assigned",
       "delivery",
       "out for delivery",
       "collecting pin",
@@ -90,6 +131,11 @@ const normalize = (value) => String(value || "").trim();
 const normalizeStatus = (value) => normalize(value).toLowerCase();
 const statusMatches = (status, tokens) =>
   tokens.some((token) => status.includes(token));
+const getStageStatus = (shipment) => {
+  const status = normalizeStatus(shipment?.status);
+  if (status) return status;
+  return normalizeStatus(shipment?.riderStatus);
+};
 
 export const getStageLabel = (stage) => STAGE_LABELS[stage] || "Assignment";
 
@@ -103,6 +149,16 @@ export const getRiderForStage = (shipment, stage) => {
   if (stage === "pickup") {
     const legacy = normalize(shipment?.rider);
     if (legacy) return legacy;
+  }
+  return "";
+};
+
+export const getRiderIdForStage = (shipment, stage) => {
+  if (!shipment || !stage) return "";
+  const fields = STAGE_RIDER_ID_FIELDS[stage] || [];
+  for (const field of fields) {
+    const value = normalize(shipment?.[field]);
+    if (value) return value;
   }
   return "";
 };
@@ -122,20 +178,25 @@ export const setRiderForStage = (shipment, stage, rider) => {
 
 export const isAssigned = (shipment, stage) => {
   if (stage) {
-    if (getRiderForStage(shipment, stage)) return true;
-    const status = normalizeStatus(shipment?.status);
+    if (
+      getRiderForStage(shipment, stage) ||
+      getRiderIdForStage(shipment, stage)
+    ) {
+      return true;
+    }
+    const riderStatus = normalizeStatus(shipment?.riderStatus);
+    if (riderStatus === "unassigned") return false;
+    const status = riderStatus || normalizeStatus(shipment?.status);
     const assignedTokens = STAGE_STATUS_RULES[stage]?.assigned || [];
     if (status && assignedTokens.length) {
       return statusMatches(status, assignedTokens);
     }
     return false;
   }
-  if (ASSIGNMENT_STAGES.some((key) => getRiderForStage(shipment, key))) {
-    return true;
-  }
-  if (normalize(shipment?.rider)) return true;
-  if (normalizeStatus(shipment?.riderStatus) === "assigned") return true;
-  return String(shipment?.status || "").toLowerCase() === "assigned";
+  return ASSIGNMENT_STAGES.some(
+    (key) =>
+      getRiderForStage(shipment, key) || getRiderIdForStage(shipment, key),
+  );
 };
 
 export const formatArea = (city, zone) => {
@@ -178,7 +239,7 @@ export const isStageApplicable = (shipment, stage) => {
 export const isStageEligible = (shipment, stage) => {
   if (!stage) return true;
   if (!isStageApplicable(shipment, stage)) return false;
-  const status = normalizeStatus(shipment?.status);
+  const status = getStageStatus(shipment);
   if (!status) return stage === "pickup";
   const rules = STAGE_STATUS_RULES[stage];
   if (!rules) return true;

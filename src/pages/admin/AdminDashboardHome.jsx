@@ -46,6 +46,14 @@ export default function AdminDashboardHome() {
       orbClass: "bg-cyan-200/40",
     },
     {
+      title: "Manage Cities",
+      description: "Add cities and manage service zones.",
+      to: "/admin/cities",
+      icon: "CT",
+      iconClass: "bg-indigo-500",
+      orbClass: "bg-indigo-200/40",
+    },
+    {
       title: "Complaint Management",
       description: "Resolve customer tickets and escalations.",
       to: "/admin/complaints",

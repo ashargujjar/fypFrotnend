@@ -1,10 +1,15 @@
-﻿import { useEffect, useMemo, useState } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  useMap,
+} from "react-leaflet";
 import { useLocation, useNavigate } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
-import "leaflet-routing-machine";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
@@ -19,27 +24,70 @@ L.Icon.Default.mergeOptions({
 const isCurrentLocation = (value) =>
   /current location|your current location/i.test(String(value || ""));
 
+const MAPBOX_TOKEN = import.meta.env.VITE_MAP_BOX_TOKEN;
+
+const riderIcon = L.divIcon({
+  className: "route-marker",
+  html: `<div style="background:#2563eb;color:#fff;width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 8px 16px rgba(15,23,42,0.25);">R</div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 28],
+  popupAnchor: [0, -24],
+});
+
+const destinationIcon = L.divIcon({
+  className: "route-marker",
+  html: `<div style="background:#ef4444;color:#fff;width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 8px 16px rgba(15,23,42,0.25);">D</div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 28],
+  popupAnchor: [0, -24],
+});
+
 const geocode = async (query) => {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
+  if (!MAPBOX_TOKEN) {
+    throw new Error("Missing Mapbox token.");
+  }
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
     query,
-  )}`;
-  const res = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-    },
-  });
+  )}.json?access_token=${MAPBOX_TOKEN}&limit=1&country=PK`;
+  const res = await fetch(url);
   if (!res.ok) {
     throw new Error("Unable to reach geocoding service.");
   }
   const data = await res.json();
-  if (!Array.isArray(data) || data.length === 0) {
+  if (!Array.isArray(data?.features) || data.features.length === 0) {
     throw new Error(`No location found for "${query}".`);
   }
-  const hit = data[0];
+  const hit = data.features[0];
+  const [lng, lat] = hit.center || [];
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new Error(`No location found for "${query}".`);
+  }
   return {
-    lat: Number(hit.lat),
-    lng: Number(hit.lon),
-    label: hit.display_name,
+    lat,
+    lng,
+    label: hit.place_name,
+  };
+};
+
+const fetchRoute = async (start, end) => {
+  if (!MAPBOX_TOKEN) {
+    throw new Error("Missing Mapbox token.");
+  }
+  const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error("Unable to fetch route.");
+  }
+  const data = await res.json();
+  const route = data?.routes?.[0];
+  if (!route?.geometry?.coordinates?.length) {
+    throw new Error("No route found.");
+  }
+  const line = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+  return {
+    line,
+    distance: route.distance,
+    duration: route.duration,
   };
 };
 
@@ -58,6 +106,23 @@ const formatDuration = (seconds = 0) => {
   return `${minutes}m`;
 };
 
+const getDistanceMeters = (pointA, pointB) => {
+  if (!pointA || !pointB) return Infinity;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const lat1 = toRad(pointA.lat);
+  const lat2 = toRad(pointB.lat);
+  const deltaLat = toRad(pointB.lat - pointA.lat);
+  const deltaLng = toRad(pointB.lng - pointA.lng);
+  const a =
+    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+    Math.cos(lat1) *
+      Math.cos(lat2) *
+      Math.sin(deltaLng / 2) *
+      Math.sin(deltaLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return 6371000 * c;
+};
+
 export default function RiderRouteMap() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -66,11 +131,19 @@ export default function RiderRouteMap() {
   const from = state.from || "Your current location";
   const to = state.to || "Destination not provided";
   const note = state.note || "";
+  const toCoords = state.toCoords;
+  const toLabel = state.toLabel || to;
   const [origin, setOrigin] = useState(null);
   const [destination, setDestination] = useState(null);
+  const [originReady, setOriginReady] = useState(false);
+  const [destinationReady, setDestinationReady] = useState(false);
+  const [routeLine, setRouteLine] = useState([]);
   const [routeMeta, setRouteMeta] = useState(null);
   const [routeError, setRouteError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [routeOrigin, setRouteOrigin] = useState(null);
+  const lastRouteUpdateRef = useRef(0);
+  const lastRouteOriginRef = useRef(null);
+  const isLoading = !routeError && (!originReady || !destinationReady);
 
   const mapCenter = useMemo(() => {
     if (origin) return origin;
@@ -80,28 +153,78 @@ export default function RiderRouteMap() {
 
   useEffect(() => {
     let isMounted = true;
-    const resolveOrigin = async () => {
-      if (!from || isCurrentLocation(from)) {
-        if (!navigator.geolocation) {
-          throw new Error("Geolocation is not supported on this device.");
-        }
-        return await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(
-            (pos) =>
-              resolve({
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude,
-                label: "Your current location",
-              }),
-            () => reject(new Error("Unable to access current location.")),
-            { enableHighAccuracy: true, timeout: 10000 },
-          );
-        });
+    let watchId = null;
+    const liveOrigin = !from || isCurrentLocation(from);
+
+    const updateOrigin = (nextOrigin) => {
+      if (!isMounted) return;
+      setOrigin(nextOrigin);
+      setOriginReady(true);
+    };
+
+    const maybeUpdateRouteOrigin = (nextOrigin, force = false) => {
+      const now = Date.now();
+      const lastOrigin = lastRouteOriginRef.current;
+      const timeElapsed = now - lastRouteUpdateRef.current;
+      const distance = getDistanceMeters(lastOrigin, nextOrigin);
+      const shouldUpdate = force || timeElapsed >= 30000 || distance >= 150;
+      if (!shouldUpdate) return;
+      lastRouteUpdateRef.current = now;
+      lastRouteOriginRef.current = nextOrigin;
+      setRouteOrigin(nextOrigin);
+    };
+
+    const resolveOriginOnce = async () => {
+      if (!navigator.geolocation) {
+        throw new Error("Geolocation is not supported on this device.");
       }
-      return await geocode(from);
+      return await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) =>
+            resolve({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              label: "Your current location",
+            }),
+          () => reject(new Error("Unable to access current location.")),
+          { enableHighAccuracy: true, timeout: 10000 },
+        );
+      });
+    };
+
+    const startOriginWatch = () => {
+      if (!navigator.geolocation) {
+        throw new Error("Geolocation is not supported on this device.");
+      }
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const nextOrigin = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            label: "Your current location",
+          };
+          updateOrigin(nextOrigin);
+          maybeUpdateRouteOrigin(nextOrigin, false);
+        },
+        () => {
+          setRouteError("Unable to access current location.");
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 },
+      );
     };
 
     const resolveDestination = async () => {
+      if (
+        toCoords &&
+        Number.isFinite(Number(toCoords.lat)) &&
+        Number.isFinite(Number(toCoords.lng))
+      ) {
+        return {
+          lat: Number(toCoords.lat),
+          lng: Number(toCoords.lng),
+          label: toLabel || "Destination",
+        };
+      }
       if (!to || to === "Destination not provided") {
         throw new Error("Destination address is missing.");
       }
@@ -110,30 +233,82 @@ export default function RiderRouteMap() {
 
     (async () => {
       try {
-        setIsLoading(true);
         setRouteError("");
         setRouteMeta(null);
-        const [originResolved, destinationResolved] = await Promise.all([
-          resolveOrigin(),
-          resolveDestination(),
-        ]);
+        setRouteLine([]);
+        setOriginReady(false);
+        setDestinationReady(false);
+        setOrigin(null);
+        setRouteOrigin(null);
+        lastRouteUpdateRef.current = 0;
+        lastRouteOriginRef.current = null;
+
+        const destinationResolved = await resolveDestination();
         if (!isMounted) return;
-        setOrigin(originResolved);
         setDestination(destinationResolved);
+        setDestinationReady(true);
+
+        if (liveOrigin) {
+          const firstOrigin = await resolveOriginOnce();
+          updateOrigin(firstOrigin);
+          maybeUpdateRouteOrigin(firstOrigin, true);
+          startOriginWatch();
+        } else {
+          const originResolved = await geocode(from);
+          updateOrigin(originResolved);
+          maybeUpdateRouteOrigin(originResolved, true);
+        }
       } catch (error) {
         if (!isMounted) return;
         setOrigin(null);
         setDestination(null);
+        setRouteOrigin(null);
+        setRouteLine([]);
         setRouteError(error?.message || "Unable to load route.");
-      } finally {
-        if (isMounted) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+      if (watchId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [from, to]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const start = routeOrigin || origin;
+    if (!start || !destination) return undefined;
+
+    (async () => {
+      try {
+        setRouteError("");
+        const route = await fetchRoute(start, destination);
+        if (!isMounted) return;
+        setRouteLine(route.line);
+        setRouteMeta({ distance: route.distance, duration: route.duration });
+      } catch (error) {
+        if (!isMounted) return;
+        setRouteLine([]);
+        setRouteError(error?.message || "Unable to calculate route.");
       }
     })();
 
     return () => {
       isMounted = false;
     };
-  }, [from, to]);
+  }, [routeOrigin, origin, destination]);
+
+  const boundsPoints = useMemo(() => {
+    if (routeLine.length > 0) return routeLine;
+    if (origin && destination)
+      return [
+        [origin.lat, origin.lng],
+        [destination.lat, destination.lng],
+      ];
+    return [];
+  }, [routeLine, origin, destination]);
 
   return (
     <div className="min-h-screen bg-light customer-page">
@@ -191,28 +366,43 @@ export default function RiderRouteMap() {
                 scrollWheelZoom={false}
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution="&copy; Mapbox &copy; OpenStreetMap"
+                  url={`https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`}
+                  tileSize={512}
+                  zoomOffset={-1}
                 />
-                <Marker position={[origin.lat, origin.lng]}>
-                  <Popup>{origin.label || "Start"}</Popup>
+                {boundsPoints.length > 0 && (
+                  <FitBounds points={boundsPoints} />
+                )}
+                {routeLine.length > 0 && (
+                  <>
+                    <Polyline
+                      positions={routeLine}
+                      pathOptions={{
+                        color: "#93c5fd",
+                        weight: 10,
+                        opacity: 0.7,
+                      }}
+                    />
+                    <Polyline
+                      positions={routeLine}
+                      pathOptions={{
+                        color: "#2563eb",
+                        weight: 6,
+                        opacity: 0.95,
+                      }}
+                    />
+                  </>
+                )}
+                <Marker position={[origin.lat, origin.lng]} icon={riderIcon}>
+                  <Popup>{origin.label || "Rider"}</Popup>
                 </Marker>
-                <Marker position={[destination.lat, destination.lng]}>
+                <Marker
+                  position={[destination.lat, destination.lng]}
+                  icon={destinationIcon}
+                >
                   <Popup>{destination.label || "Destination"}</Popup>
                 </Marker>
-                <RoutingMachine
-                  from={origin}
-                  to={destination}
-                  onRouteFound={(summary) =>
-                    setRouteMeta({
-                      distance: summary.totalDistance,
-                      duration: summary.totalTime,
-                    })
-                  }
-                  onRouteError={() =>
-                    setRouteError("Unable to calculate route.")
-                  }
-                />
               </MapContainer>
             </div>
           )}
@@ -222,43 +412,14 @@ export default function RiderRouteMap() {
   );
 }
 
-function RoutingMachine({ from, to, onRouteFound, onRouteError }) {
+function FitBounds({ points }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!map || !from || !to) return undefined;
-    const control = L.Routing.control({
-      waypoints: [L.latLng(from.lat, from.lng), L.latLng(to.lat, to.lng)],
-      router: L.Routing.osrmv1({
-        serviceUrl: "https://router.project-osrm.org/route/v1",
-      }),
-      addWaypoints: false,
-      draggableWaypoints: false,
-      routeWhileDragging: false,
-      fitSelectedRoutes: true,
-      show: false,
-      lineOptions: {
-        styles: [{ color: "#2563eb", weight: 5, opacity: 0.85 }],
-      },
-      createMarker: () => null,
-    });
-
-    control.on("routesfound", (event) => {
-      const route = event?.routes?.[0];
-      if (route?.summary && onRouteFound) {
-        onRouteFound(route.summary);
-      }
-    });
-    control.on("routingerror", () => {
-      if (onRouteError) onRouteError();
-    });
-
-    control.addTo(map);
-
-    return () => {
-      map.removeControl(control);
-    };
-  }, [map, from, to, onRouteFound, onRouteError]);
+    if (!map || !points || points.length === 0) return;
+    const bounds = L.latLngBounds(points);
+    map.fitBounds(bounds, { padding: [40, 40] });
+  }, [map, points]);
 
   return null;
 }

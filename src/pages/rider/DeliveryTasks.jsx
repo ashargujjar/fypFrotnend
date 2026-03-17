@@ -54,6 +54,9 @@ const buildDeliveryTasks = (list) =>
       id: taskId,
       shipmentId: shipmentId || "-",
       dropoff: shipment?.deliveryAddress || "N/A",
+      deliveryZone: shipment?.deliveryZone || shipment?.destination_zone || "",
+      deliveryLat: shipment?.deliveryLat ?? null,
+      deliveryLng: shipment?.deliveryLng ?? null,
       receiver: shipment?.receiverName || "N/A",
       cod: Number(codAmount) || 0,
       notes: shipment?.notes || "No notes provided.",
@@ -215,11 +218,26 @@ export default function DeliveryTasks() {
   };
 
   const handleRoute = (task) => {
+    const destination = [
+      task.dropoff,
+      task.deliveryZone,
+      task.destination_city,
+      "Pakistan",
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const hasCoords =
+      Number.isFinite(Number(task.deliveryLat)) &&
+      Number.isFinite(Number(task.deliveryLng));
     navigate("/rider/route", {
       state: {
         title: `Route to delivery for ${task.shipmentId}`,
         from: "Your current location",
-        to: task.dropoff,
+        to: destination,
+        toCoords: hasCoords
+          ? { lat: Number(task.deliveryLat), lng: Number(task.deliveryLng) }
+          : null,
+        toLabel: task.dropoff,
         note: `Delivery task ${task.id}`,
       },
     });

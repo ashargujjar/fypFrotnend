@@ -7,9 +7,30 @@ import PaymentMethod from "./components/book-shipment/PaymentMethod";
 import SubmitSection from "./components/book-shipment/SubmitSection";
 import { toastError, toastSuccess } from "../../utils/toast";
 const API_URL = import.meta.env.VITE_API_URL;
+const MAPBOX_TOKEN = import.meta.env.VITE_MAP_BOX_TOKEN;
 const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString()}`;
 const inputClass =
   "customer-input p-3 border rounded-lg outline-none focus:border-primary border-gray-300";
+
+const geocodeAddress = async (query) => {
+  if (!MAPBOX_TOKEN) return null;
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+    query,
+  )}.json?access_token=${MAPBOX_TOKEN}&limit=1&country=PK`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error("Unable to reach geocoding service.");
+  }
+  const data = await res.json();
+  if (!Array.isArray(data?.features) || data.features.length === 0) {
+    throw new Error(`No location found for "${query}".`);
+  }
+  const [lng, lat] = data.features[0].center || [];
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new Error(`No location found for "${query}".`);
+  }
+  return { lat, lng };
+};
 
 export default function BookShipment() {
   const [codAmount, setCodAmount] = useState(0);
@@ -214,6 +235,22 @@ export default function BookShipment() {
     if (isSubmitting) return;
     setIsSubmitting(true);
     const { minTemp, maxTemp, ...restForm } = form;
+    const pickupAddressFull = [
+      form.pickupAddress,
+      form.pickupZone,
+      form.pickupCity,
+      "Pakistan",
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const deliveryAddressFull = [
+      form.deliveryAddress,
+      form.deliveryZone,
+      form.deliveryCity,
+      "Pakistan",
+    ]
+      .filter(Boolean)
+      .join(", ");
     const submitData = {
       ...restForm,
       codAmount: codAmount,
@@ -224,6 +261,22 @@ export default function BookShipment() {
     if (maxTempValue !== undefined) submitData.maxTemp = maxTempValue;
 
     try {
+      if (MAPBOX_TOKEN) {
+        const [pickupCoords, deliveryCoords] = await Promise.all([
+          geocodeAddress(pickupAddressFull),
+          geocodeAddress(deliveryAddressFull),
+        ]);
+        if (!pickupCoords || !deliveryCoords) {
+          throw new Error(
+            "Unable to locate pickup or delivery address. Please make it more specific.",
+          );
+        }
+        submitData.pickupLat = pickupCoords.lat;
+        submitData.pickupLng = pickupCoords.lng;
+        submitData.deliveryLat = deliveryCoords.lat;
+        submitData.deliveryLng = deliveryCoords.lng;
+      }
+
       const res = await fetch(`${API_URL}/shipment/bookShipment`, {
         body: JSON.stringify(submitData),
         headers: {

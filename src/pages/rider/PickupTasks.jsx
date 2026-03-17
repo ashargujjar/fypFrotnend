@@ -58,6 +58,9 @@ const buildPickupTasks = (list) =>
       );
       const taskId = normalizeId(task?._id || task?.id) || `PK-${index + 1}`;
       const pickupCity = shipment?.pickupCity || shipment?.origin_city || "";
+      const pickupZone = shipment?.pickupZone || shipment?.origin_zone || "";
+      const deliveryZone =
+        shipment?.deliveryZone || shipment?.destination_zone || "";
       const deliveryCity =
         shipment?.deliveryCity || shipment?.destination_city || "";
       const notes = normalize(shipment?.notes || shipment?.note);
@@ -68,6 +71,9 @@ const buildPickupTasks = (list) =>
         id: taskId,
         shipmentId: shipmentId || "-",
         pickupAddress: shipment?.pickupAddress || "N/A",
+        pickupZone,
+        pickupLat: shipment?.pickupLat ?? null,
+        pickupLng: shipment?.pickupLng ?? null,
         contact:
           shipment?.receiverPhone ||
           shipment?.contact ||
@@ -75,6 +81,7 @@ const buildPickupTasks = (list) =>
           "N/A",
         notes: notes || "No notes provided.",
         origin_city: pickupCity,
+        delivery_zone: deliveryZone,
         destination_city: deliveryCity,
         iotRequired: Array.isArray(shipment?.iotRequired)
           ? shipment.iotRequired
@@ -297,11 +304,26 @@ export default function PickupTasks() {
   };
 
   const handleRoute = (task) => {
+    const destination = [
+      task.pickupAddress,
+      task.pickupZone,
+      task.origin_city,
+      "Pakistan",
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const hasCoords =
+      Number.isFinite(Number(task.pickupLat)) &&
+      Number.isFinite(Number(task.pickupLng));
     navigate("/rider/route", {
       state: {
         title: `Route to pickup for ${task.shipmentId}`,
         from: "Your current location",
-        to: task.pickupAddress,
+        to: destination,
+        toCoords: hasCoords
+          ? { lat: Number(task.pickupLat), lng: Number(task.pickupLng) }
+          : null,
+        toLabel: task.pickupAddress,
         note: `Pickup task ${task.id}`,
       },
     });

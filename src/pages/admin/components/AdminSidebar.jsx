@@ -8,6 +8,7 @@ export default function AdminSidebar() {
     { label: "Riders", to: "/admin/riders" },
     { label: "Assignments", to: "/admin/assignments" },
     { label: "IoT Center", to: "/admin/iot" },
+    { label: "Manage Cities", to: "/admin/cities" },
     { label: "Blockchain", to: "/admin/blockchain" },
     { label: "Profile", to: "/admin/profile" },
     { label: "Logout", to: "/login" },

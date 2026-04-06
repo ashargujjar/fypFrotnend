@@ -157,9 +157,7 @@ export default function Assignments() {
 
   const [selectedRiders, setSelectedRiders] = useState({});
   const [assignmentStage, setAssignmentStage] = useState("pickup");
-  const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [routeFilter, setRouteFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("assigned-first");
   const assignedSectionRef = useRef(null);
   const [assigningMap, setAssigningMap] = useState({});
 
@@ -181,32 +179,13 @@ export default function Assignments() {
   const filteredShipments = shipments.filter((shipment) => {
     if (!isStageEligible(shipment, assignmentStage)) return false;
     const assigned = isAssigned(shipment, assignmentStage);
-    if (assignmentFilter === "all" && assigned) return false;
-    if (assignmentFilter === "assigned" && !assigned) return false;
-    if (assignmentFilter === "unassigned" && assigned) return false;
+    if (assigned) return false;
     if (routeFilter === "intracity" && isIntercity(shipment)) return false;
     if (routeFilter === "intercity" && !isIntercity(shipment)) return false;
     return true;
   });
 
-  const sortedShipments = filteredShipments.slice().sort((a, b) => {
-    if (sortBy === "assigned-first") {
-      return (
-        Number(isAssigned(b, assignmentStage)) -
-        Number(isAssigned(a, assignmentStage))
-      );
-    }
-    if (sortBy === "unassigned-first") {
-      return (
-        Number(isAssigned(a, assignmentStage)) -
-        Number(isAssigned(b, assignmentStage))
-      );
-    }
-    if (sortBy === "order") {
-      return String(a?._id || "").localeCompare(String(b?._id || ""));
-    }
-    return 0;
-  });
+  const sortedShipments = filteredShipments;
 
   const assignedShipments = shipments.filter(
     (shipment) =>
@@ -320,14 +299,10 @@ export default function Assignments() {
 
         <AssignmentQueue
           assignmentStage={assignmentStage}
-          assignmentFilter={assignmentFilter}
           routeFilter={routeFilter}
-          sortBy={sortBy}
           stageLabel={stageLabel}
           onChangeAssignmentStage={setAssignmentStage}
-          onChangeAssignmentFilter={setAssignmentFilter}
           onChangeRouteFilter={setRouteFilter}
-          onChangeSortBy={setSortBy}
           shipments={sortedShipments}
           isLoading={isLoading}
           loadError={loadError}

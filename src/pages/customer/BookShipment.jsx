@@ -1,5 +1,6 @@
-import Topbar from "./components/Topbar";
+﻿import Topbar from "./components/Topbar";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import SenderInfo from "./components/book-shipment/SenderInfo";
 import ReceiverInfo from "./components/book-shipment/ReceiverInfo";
 import PackageDetails from "./components/book-shipment/PackageDetails";
@@ -33,6 +34,7 @@ const geocodeAddress = async (query) => {
 };
 
 export default function BookShipment() {
+  const navigate = useNavigate();
   const [codAmount, setCodAmount] = useState(0);
   const [useWallet, setUseWallet] = useState(true);
   const [errors, setErrors] = useState({});
@@ -288,6 +290,7 @@ export default function BookShipment() {
       const resp = await res.json();
       if (res.ok && resp?.success) {
         toastSuccess(resp?.message ?? "Shipment booked successfully.");
+        navigate("/customer/dashboard");
       } else {
         toastError(resp?.message ?? "Unable to book shipment.");
       }

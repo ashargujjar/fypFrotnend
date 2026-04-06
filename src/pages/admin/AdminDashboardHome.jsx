@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminTopbar from "./components/AdminTopbar";
 import { Link } from "react-router-dom";
 const API_URL = import.meta.env.VITE_API_URL;
 
 export default function AdminDashboardHome() {
   const token = localStorage.getItem("token");
+  const [alerts, setAlerts] = useState([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [alertsError, setAlertsError] = useState("");
 
   const [countDashboard, setCountDashboard] = useState({
     totalUsers: 0,
@@ -89,6 +92,68 @@ export default function AdminDashboardHome() {
     getCountDashboard();
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    const loadAlerts = async () => {
+      if (!token) return;
+      try {
+        setAlertsError("");
+        setAlertsLoading(true);
+        const endpoint = API_URL
+          ? `${API_URL}/iot/alerts?limit=5`
+          : "/iot/alerts?limit=5";
+        const res = await fetch(endpoint, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Unable to load alerts.");
+        }
+        const list = Array.isArray(data?.alerts)
+          ? data.alerts
+          : Array.isArray(data)
+            ? data
+            : [];
+        if (isMounted) setAlerts(list);
+      } catch (error) {
+        if (isMounted)
+          setAlertsError(error?.message || "Unable to load alerts.");
+      } finally {
+        if (isMounted) setAlertsLoading(false);
+      }
+    };
+
+    loadAlerts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  const alertRows = useMemo(() => {
+    return alerts.map((alert) => {
+      const type = String(alert?.type || "Alert")
+        .replace(/_/g, " ")
+        .toUpperCase();
+      const shipmentId = alert?.shipmentId || "N/A";
+      const message = alert?.message || "No details.";
+      const time = alert?.createdAt
+        ? new Date(alert.createdAt).toLocaleString()
+        : "Timestamp unavailable";
+      const severity = String(alert?.severity || "info").toLowerCase();
+      return { id: alert?._id || alert?.id, type, shipmentId, message, time, severity };
+    });
+  }, [alerts]);
+
+  const severityClass = (severity) => {
+    if (severity === "high") return "bg-red-100 text-red-700";
+    if (severity === "medium") return "bg-yellow-100 text-yellow-700";
+    if (severity === "low") return "bg-slate-100 text-slate-600";
+    return "bg-slate-50 text-slate-500";
+  };
+
   return (
     <div className="min-h-screen bg-light customer-page">
       <AdminTopbar />
@@ -153,14 +218,37 @@ export default function AdminDashboardHome() {
               Critical Alerts
             </h2>
 
-            <ul className="space-y-3">
-              <li className="bg-red-100 px-4 py-2 rounded-lg text-red-700 font-semibold">
-                Temperature breach on SS-1125
-              </li>
-              <li className="bg-yellow-100 px-4 py-2 rounded-lg text-yellow-700 font-semibold">
-                Rider deviation on SS-1090
-              </li>
-            </ul>
+            {alertsLoading ? (
+              <p className="text-sm text-gray-500">Loading alerts...</p>
+            ) : alertsError ? (
+              <p className="text-sm text-red-600">{alertsError}</p>
+            ) : alertRows.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                No IoT alerts recorded yet.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {alertRows.map((alert, index) => (
+                  <li
+                    key={alert.id || `${alert.shipmentId}-${index}`}
+                    className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border border-slate-100 rounded-lg px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-900">
+                        {alert.type} - {alert.shipmentId}
+                      </p>
+                      <p className="text-sm text-slate-600">{alert.message}</p>
+                      <p className="text-xs text-slate-400">{alert.time}</p>
+                    </div>
+                    <span
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold ${severityClass(alert.severity)}`}
+                    >
+                      {alert.severity.toUpperCase()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>

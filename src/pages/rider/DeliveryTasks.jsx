@@ -6,6 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const normalize = (value) => String(value || "").trim();
 const normalizeStatus = (value) => normalize(value).toLowerCase();
+const isDeliveredStatus = (value) => normalizeStatus(value).includes("delivered");
 
 const getDeliveryStepIndex = (value) => {
   const status = normalizeStatus(value);
@@ -82,7 +83,8 @@ export default function DeliveryTasks() {
   const [otpVerified, setOtpVerified] = useState({});
   const [collectingOtp, setCollectingOtp] = useState({});
   const [otpError, setOtpError] = useState({});
-  const [iotDetachMap, setIotDetachMap] = useState({});
+  const [otpSending, setOtpSending] = useState({});
+  const [otpVerifying, setOtpVerifying] = useState({});
   const token = localStorage.getItem("token");
 
   useEffect(() => {
@@ -124,7 +126,10 @@ export default function DeliveryTasks() {
                 ? data.data
                 : [];
         if (isMounted) {
-          setTasks(buildDeliveryTasks(list));
+          const nextTasks = buildDeliveryTasks(list).filter(
+            (task) => !isDeliveredStatus(task.status),
+          );
+          setTasks(nextTasks);
           if (showLoader) setLoadError("");
         }
       } catch (error) {
@@ -234,6 +239,8 @@ export default function DeliveryTasks() {
         title: `Route to delivery for ${task.shipmentId}`,
         from: "Your current location",
         to: destination,
+        routeType: "delivery",
+        deliveryAddressFull: destination,
         toCoords: hasCoords
           ? { lat: Number(task.deliveryLat), lng: Number(task.deliveryLng) }
           : null,
@@ -248,111 +255,133 @@ export default function DeliveryTasks() {
     setOtpError((prev) => ({ ...prev, [id]: "" }));
   };
 
+  const requestDeliveryPin = async (task, { successMessage } = {}) => {
+    const taskId = task?.id;
+    if (!taskId) return false;
+    if (otpSending[taskId]) return false;
+
+    setOtpSending((prev) => ({ ...prev, [taskId]: true }));
+    try {
+      await sendDeliveryPin(task?.shipmentId);
+      setOtpError((prev) => ({ ...prev, [taskId]: "" }));
+      if (successMessage) {
+        toastSuccess(successMessage);
+      }
+      return true;
+    } catch (error) {
+      const message = error?.message || "Unable to send PIN.";
+      setOtpError((prev) => ({ ...prev, [taskId]: message }));
+      toastError(message);
+      return false;
+    } finally {
+      setOtpSending((prev) => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
+    }
+  };
+
   const handleVerifyOtp = async (task) => {
-    const value = (otpInputs[task.id] || "").trim();
+    const taskId = task?.id;
+    const value = (otpInputs[taskId] || "").trim();
 
-    if (value.length !== 4) {
-      setOtpError((prev) => ({ ...prev, [task.id]: "Enter 4-digit PIN" }));
-      setOtpVerified((prev) => ({ ...prev, [task.id]: false }));
+    if (!value || value.length !== 4) {
+      setOtpError((prev) => ({ ...prev, [taskId]: "Enter 4-digit PIN" }));
+      setOtpVerified((prev) => ({ ...prev, [taskId]: false }));
+      toastError("Enter a valid 4-digit PIN.");
       return;
     }
 
-    if (value !== task.otp) {
-      setOtpError((prev) => ({
-        ...prev,
-        [task.id]: "Incorrect PIN. Try again.",
-      }));
-      setOtpVerified((prev) => ({ ...prev, [task.id]: false }));
-      return;
-    }
-
-    const ok = await advance(task, "PIN Verified");
-    if (ok) {
-      setOtpVerified((prev) => ({ ...prev, [task.id]: true }));
-      setOtpError((prev) => ({ ...prev, [task.id]: "" }));
-    } else {
-      setOtpVerified((prev) => ({ ...prev, [task.id]: false }));
+    if (otpVerifying[taskId]) return;
+    setOtpVerifying((prev) => ({ ...prev, [taskId]: true }));
+    try {
+      await verifyDeliveryPin(task?.shipmentId, value);
+      setOtpVerified((prev) => ({ ...prev, [taskId]: true }));
+      setOtpError((prev) => ({ ...prev, [taskId]: "" }));
+      setStatus(taskId, "PIN Verified");
+      toastSuccess("PIN verified successfully.");
+    } catch (error) {
+      const message = error?.message || "Unable to verify PIN.";
+      setOtpVerified((prev) => ({ ...prev, [taskId]: false }));
+      setOtpError((prev) => ({ ...prev, [taskId]: message }));
+      toastError(message);
+    } finally {
+      setOtpVerifying((prev) => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
     }
   };
 
   const startCollectingOtp = async (task) => {
-    const ok = await advance(task, "Collecting PIN");
-    if (ok) {
+    const sent = await requestDeliveryPin(task, {
+      successMessage: "Verification PIN sent to customer email.",
+    });
+    if (sent) {
       setCollectingOtp((prev) => ({ ...prev, [task.id]: true }));
+      await advance(task, "Collecting PIN");
     }
   };
 
-  const updateIotDetach = (id, updates) =>
-    setIotDetachMap((prev) => ({
-      ...prev,
-      [id]: {
-        deviceId: "",
-        status: "Pending detach",
-        isSubmitting: false,
-        ...prev[id],
-        ...updates,
-      },
-    }));
+  const handleResendOtp = async (task) => {
+    await requestDeliveryPin(task, {
+      successMessage: "PIN resent to customer email.",
+    });
+  };
 
-  const detachIotDevice = async (shipmentId, deviceId) => {
-    if (!shipmentId) {
+
+  const sendDeliveryPin = async (shipmentId) => {
+    if (!shipmentId || shipmentId === "-") {
       throw new Error("Missing shipment id.");
     }
     if (!token) {
       throw new Error("Missing auth token.");
     }
     const endpoint = API_URL
-      ? `${API_URL}/rider/iot/detach`
-      : "/rider/iot/detach";
+      ? `${API_URL}/rider/sendDeliveryPin`
+      : "/rider/sendDeliveryPin";
     const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ shipmentId, deviceId }),
+      body: JSON.stringify({ shipmentId }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data?.success === false) {
-      throw new Error(data?.message || "Unable to detach IoT device.");
+      throw new Error(data?.message || "Unable to send PIN.");
     }
     return data;
   };
 
-  const handleDetachIot = async (task) => {
-    const taskId = task?.id;
-    const shipmentId = task?.shipmentId;
-    if (!taskId || !shipmentId || shipmentId === "-") {
-      toastError("Missing shipment id.");
-      return;
+  const verifyDeliveryPin = async (shipmentId, pin) => {
+    if (!shipmentId || shipmentId === "-") {
+      throw new Error("Missing shipment id.");
     }
-    const current = iotDetachMap[taskId];
-    const rawId = current?.deviceId || task?.iotDeviceId || "";
-    const deviceId = String(rawId).trim().toUpperCase();
-    if (!deviceId) {
-      toastError("Enter device ID to detach.");
-      return;
+    if (!token) {
+      throw new Error("Missing auth token.");
     }
-    if (current?.isSubmitting) return;
-    updateIotDetach(taskId, {
-      status: "Detaching...",
-      isSubmitting: true,
-      deviceId,
+    const endpoint = API_URL
+      ? `${API_URL}/rider/verifyDeliveryPin`
+      : "/rider/verifyDeliveryPin";
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ shipmentId, pin }),
     });
-
-    try {
-      await detachIotDevice(shipmentId, deviceId);
-      updateIotDetach(taskId, {
-        status: "Device detached",
-        isSubmitting: false,
-        deviceId,
-      });
-      toastSuccess("IoT device detached.");
-    } catch (error) {
-      updateIotDetach(taskId, { status: "Detach failed", isSubmitting: false });
-      toastError(error?.message || "Unable to detach IoT device.");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data?.success === false) {
+      throw new Error(data?.message || "Unable to verify PIN.");
     }
+    return data;
   };
+
 
   const statusCounts = tasks.reduce(
     (acc, task) => {
@@ -415,13 +444,13 @@ export default function DeliveryTasks() {
               otpValue={otpInputs[task.id] || ""}
               onOtpChange={handleOtpChange}
               onVerifyOtp={handleVerifyOtp}
+              onResendOtp={handleResendOtp}
               isVerified={!!otpVerified[task.id]}
               showOtp={!!collectingOtp[task.id]}
               startCollectingOtp={startCollectingOtp}
               otpError={otpError[task.id]}
-              iotDetachState={iotDetachMap[task.id]}
-              onIotDetachChange={updateIotDetach}
-              onDetachIot={handleDetachIot}
+              isOtpSending={!!otpSending[task.id]}
+              isOtpVerifying={!!otpVerifying[task.id]}
               updatingStatus={updatingMap[task.id]}
             />
           ))}
@@ -460,13 +489,13 @@ function DeliveryCard({
   otpValue,
   onOtpChange,
   onVerifyOtp,
+  onResendOtp,
   isVerified,
   showOtp,
   startCollectingOtp,
   otpError,
-  iotDetachState,
-  onIotDetachChange,
-  onDetachIot,
+  isOtpSending,
+  isOtpVerifying,
   updatingStatus,
 }) {
   const statusStyles = {
@@ -482,19 +511,13 @@ function DeliveryCard({
     statusStyles[status] ||
     "bg-slate-50 text-slate-700 border border-slate-200";
   const codLabel = task.cod > 0 ? `Rs ${task.cod}` : "Prepaid";
-  const iotDetach = iotDetachState || {
-    deviceId: task?.iotDeviceId || "",
-    status: task?.iotStatus === "detached" ? "Device detached" : "Pending detach",
-    isSubmitting: false,
-  };
-  const isDetached =
-    iotDetach.status === "Device detached" || task?.iotStatus === "detached";
-  const isDetaching = Boolean(iotDetach.isSubmitting);
   const normalizedStatus = normalizeStatus(status);
   const currentStep = getDeliveryStepIndex(status);
   const isDone = (stepIndex) => currentStep >= stepIndex;
   const isUnlocked = (stepIndex) => currentStep >= stepIndex - 1;
   const isUpdating = Boolean(updatingStatus);
+  const isSendingOtp = Boolean(isOtpSending);
+  const isVerifyingOtp = Boolean(isOtpVerifying);
   const isActive = (nextStatus) => updatingStatus === nextStatus;
   const isCollectingStatus =
     normalizedStatus.includes("collecting pin") ||
@@ -565,10 +588,15 @@ function DeliveryCard({
         {!isDone(2) && (
           <button
             onClick={() => startCollectingOtp(task)}
-            disabled={isUpdating || !isUnlocked(2)}
+            disabled={isUpdating || isSendingOtp || !isUnlocked(2)}
             className="customer-button bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {isActive("Collecting PIN") ? (
+            {isSendingOtp ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="loading loading-spinner loading-xs" />
+                Sending...
+              </span>
+            ) : isActive("Collecting PIN") ? (
               <span className="inline-flex items-center gap-2">
                 <span className="loading loading-spinner loading-xs" />
                 Updating...
@@ -592,7 +620,7 @@ function DeliveryCard({
           <p className="text-sm font-semibold text-primary">
             Enter 4-digit PIN sent to customer
           </p>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <input
               type="text"
               inputMode="numeric"
@@ -604,20 +632,29 @@ function DeliveryCard({
               className="customer-input border border-gray-300 rounded-lg px-3 py-2 w-44"
             />
             {!verified && (
-              <button
-                onClick={() => onVerifyOtp(task)}
-                disabled={isUpdating || !isUnlocked(3)}
-                className="customer-button bg-primary text-white px-3 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isActive("PIN Verified") ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="loading loading-spinner loading-xs" />
-                    Verifying...
-                  </span>
-                ) : (
-                  "Verify PIN"
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onVerifyOtp(task)}
+                  disabled={isUpdating || isVerifyingOtp || isSendingOtp || !isUnlocked(3)}
+                  className="customer-button bg-primary text-white px-3 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isVerifyingOtp ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="loading loading-spinner loading-xs" />
+                      Verifying...
+                    </span>
+                  ) : (
+                    "Verify PIN"
+                  )}
+                </button>
+                <button
+                  onClick={() => onResendOtp(task)}
+                  disabled={isUpdating || isSendingOtp || isVerifyingOtp}
+                  className="customer-button bg-white text-primary border border-primary/40 px-3 py-2 rounded-lg hover:bg-blue-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSendingOtp ? "Resending..." : "Resend PIN"}
+                </button>
+              </div>
             )}
             {verified && (
               <span className="text-green-600 text-sm font-semibold">
@@ -631,43 +668,11 @@ function DeliveryCard({
 
       {verified && !isDone(4) && (
         <div className="space-y-3">
-          <div className="border rounded-lg p-3 bg-slate-50 space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-primary">
-                Detach IoT Device
-              </p>
-              <span className="text-xs text-gray-500">{iotDetach.status}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <input
-                type="text"
-                value={iotDetach.deviceId}
-                onChange={(e) =>
-                  onIotDetachChange(task.id, { deviceId: e.target.value })
-                }
-                placeholder="Enter device ID to detach"
-                className="customer-input border rounded-lg px-3 py-2 col-span-2"
-              />
-              <button
-                onClick={() => onDetachIot(task)}
-                disabled={isDetaching || isDetached}
-                className="customer-button bg-primary text-white rounded-lg px-3 py-2 col-span-2 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isDetaching
-                  ? "Detaching..."
-                  : isDetached
-                  ? "Device detached"
-                  : "Detach IoT Device"}
-              </button>
-            </div>
-          </div>
           <button
             onClick={() => onComplete(task)}
-            disabled={!isDetached || isUpdating || isDetaching}
+            disabled={isUpdating}
             className={`customer-button rounded-lg px-3 py-2 w-full disabled:opacity-60 disabled:cursor-not-allowed ${
-              isDetached
-                ? "bg-green-600 text-white hover:bg-green-700"
-                : "bg-gray-200 text-gray-500"
+              "bg-green-600 text-white hover:bg-green-700"
             }`}
           >
             {isActive("Delivered") ? (

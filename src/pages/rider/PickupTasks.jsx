@@ -320,6 +320,8 @@ export default function PickupTasks() {
         title: `Route to pickup for ${task.shipmentId}`,
         from: "Your current location",
         to: destination,
+        routeType: "pickup",
+        pickupAddressFull: destination,
         toCoords: hasCoords
           ? { lat: Number(task.pickupLat), lng: Number(task.pickupLng) }
           : null,

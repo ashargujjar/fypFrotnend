@@ -38,6 +38,12 @@ export default function MyShipments() {
     return parts.length ? parts.join(", ") : "-";
   };
 
+  const formatAlertCount = (value) => {
+    const count = Number(value || 0);
+    if (!Number.isFinite(count) || count <= 0) return "0";
+    return String(count);
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -134,6 +140,7 @@ export default function MyShipments() {
                     <th className="p-3">Shipment ID</th>
                     <th className="p-3">Date</th>
                     <th className="p-3">Status</th>
+                    <th className="p-3">Alerts</th>
                     <th className="p-3">Location</th>
                   </tr>
                 </thead>
@@ -184,7 +191,17 @@ export default function MyShipments() {
                             {s.status || "Pending"}
                           </span>
                         </td>
-
+                        <td className="p-3">
+                          <span
+                            className={`px-3 py-1 rounded-lg text-sm font-semibold ${
+                              Number(s.alertCount || 0) > 0
+                                ? "bg-red-100 text-red-700"
+                                : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {formatAlertCount(s.alertCount)}
+                          </span>
+                        </td>
                           <td className="p-3">{formatLocation(s)}</td>
                         </tr>
                       );

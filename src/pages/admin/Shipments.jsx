@@ -116,6 +116,7 @@ export default function Shipments() {
               <tr className="bg-gray-50 border-b text-gray-600">
                 <th className="p-3">ID</th>
                 <th className="p-3">Status</th>
+                <th className="p-3">Alerts</th>
                 <th className="p-3">Origin</th>
                 <th className="p-3">Destination</th>
                 <th className="p-3">Rider</th>
@@ -131,6 +132,17 @@ export default function Shipments() {
                 >
                   <td className="p-3">{s._id || s.id}</td>
                   <td className="p-3">{s.status}</td>
+                  <td className="p-3">
+                    <span
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                        Number(s.alertCount || 0) > 0
+                          ? "bg-red-100 text-red-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {Number(s.alertCount || 0)}
+                    </span>
+                  </td>
                   <td className="p-3">{s.pickupCity}</td>
                   <td className="p-3">{s.deliveryCity}</td>
                   <td className="p-3">

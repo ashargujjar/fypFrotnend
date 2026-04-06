@@ -1,4 +1,4 @@
-export default function ReceiverInfo({
+﻿export default function ReceiverInfo({
   cityOptions,
   cityZones,
   errors,

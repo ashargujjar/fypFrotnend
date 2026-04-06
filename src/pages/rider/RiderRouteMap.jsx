@@ -130,6 +130,9 @@ export default function RiderRouteMap() {
   const title = state.title || "Route Preview";
   const from = state.from || "Your current location";
   const to = state.to || "Destination not provided";
+  const routeType = state.routeType || "";
+  const pickupAddressFull = state.pickupAddressFull || "";
+  const deliveryAddressFull = state.deliveryAddressFull || "";
   const note = state.note || "";
   const toCoords = state.toCoords;
   const toLabel = state.toLabel || to;
@@ -150,6 +153,33 @@ export default function RiderRouteMap() {
     if (destination) return destination;
     return { lat: 24.8607, lng: 67.0011 };
   }, [origin, destination]);
+
+  const destinationText = useMemo(() => {
+    if (routeType === "pickup" && pickupAddressFull) return pickupAddressFull;
+    if (routeType === "delivery" && deliveryAddressFull)
+      return deliveryAddressFull;
+    if (to && to !== "Destination not provided") return to;
+    return toLabel || "";
+  }, [routeType, pickupAddressFull, deliveryAddressFull, to, toLabel]);
+  const originText = useMemo(() => {
+    if (!from || isCurrentLocation(from)) return "";
+    return from;
+  }, [from]);
+  const canOpenGoogleMaps = Boolean(destinationText);
+
+  const openInGoogleMaps = () => {
+    if (!destinationText) return;
+    const params = new URLSearchParams({
+      api: "1",
+      travelmode: "driving",
+      destination: destinationText,
+    });
+    if (originText) {
+      params.set("origin", originText);
+    }
+    const url = `https://www.google.com/maps/dir/?${params.toString()}`;
+    window.open(url, "_blank", "noopener");
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -214,6 +244,7 @@ export default function RiderRouteMap() {
     };
 
     const resolveDestination = async () => {
+      const destinationValue = destinationText || to;
       if (
         toCoords &&
         Number.isFinite(Number(toCoords.lat)) &&
@@ -222,13 +253,13 @@ export default function RiderRouteMap() {
         return {
           lat: Number(toCoords.lat),
           lng: Number(toCoords.lng),
-          label: toLabel || "Destination",
+          label: destinationValue || toLabel || "Destination",
         };
       }
-      if (!to || to === "Destination not provided") {
+      if (!destinationValue || destinationValue === "Destination not provided") {
         throw new Error("Destination address is missing.");
       }
-      return await geocode(to);
+      return await geocode(destinationValue);
     };
 
     (async () => {
@@ -320,12 +351,25 @@ export default function RiderRouteMap() {
             <h1 className="text-2xl font-bold text-primary">{title}</h1>
             {note && <p className="text-gray-600">{note}</p>}
           </div>
-          <button
-            onClick={() => navigate(-1)}
-            className="customer-button bg-white border border-slate-200 px-3 py-2 rounded-lg text-sm hover:border-primary/40"
-          >
-            Back to tasks
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={openInGoogleMaps}
+              disabled={!canOpenGoogleMaps}
+              className={`customer-button px-3 py-2 rounded-lg text-sm ${
+                canOpenGoogleMaps
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : "bg-slate-100 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              Open in Google Maps
+            </button>
+            <button
+              onClick={() => navigate(-1)}
+              className="customer-button bg-white border border-slate-200 px-3 py-2 rounded-lg text-sm hover:border-primary/40"
+            >
+              Back to tasks
+            </button>
+          </div>
         </div>
 
         <div className="customer-card bg-white rounded-xl shadow p-6 space-y-2">
@@ -334,7 +378,7 @@ export default function RiderRouteMap() {
             <strong>From:</strong> {from}
           </p>
           <p className="text-sm text-gray-700">
-            <strong>To:</strong> {to}
+            <strong>To:</strong> {destinationText || to}
           </p>
           <p className="text-sm text-gray-700">
             <strong>Estimated distance:</strong>{" "}

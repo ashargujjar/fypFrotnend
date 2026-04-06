@@ -11,14 +11,10 @@ import {
 
 export default function AssignmentQueue({
   assignmentStage,
-  assignmentFilter,
   routeFilter,
-  sortBy,
   stageLabel,
   onChangeAssignmentStage,
-  onChangeAssignmentFilter,
   onChangeRouteFilter,
-  onChangeSortBy,
   shipments,
   isLoading,
   loadError,
@@ -78,13 +74,9 @@ export default function AssignmentQueue({
         </div>
         <AssignmentFilters
           assignmentStage={assignmentStage}
-          assignmentFilter={assignmentFilter}
           routeFilter={routeFilter}
-          sortBy={sortBy}
           onChangeAssignmentStage={onChangeAssignmentStage}
-          onChangeAssignmentFilter={onChangeAssignmentFilter}
           onChangeRouteFilter={onChangeRouteFilter}
-          onChangeSortBy={onChangeSortBy}
         />
       </div>
       {showNoStageRiders && (

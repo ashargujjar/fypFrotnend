@@ -59,7 +59,13 @@ export default function Shipments() {
       return id.includes(term);
     });
 
-    if (!sortField) return filtered;
+    if (!sortField) {
+      return [...filtered].sort(
+        (a, b) =>
+          new Date(b?.createdAt || 0).getTime() -
+          new Date(a?.createdAt || 0).getTime(),
+      );
+    }
 
     const resolveSortValue = (item) => {
       if (sortField === "origin") return item?.pickupCity || "";
@@ -75,6 +81,19 @@ export default function Shipments() {
       String(resolveSortValue(a)).localeCompare(String(resolveSortValue(b))),
     );
   }, [shipments, searchTerm, sortField]);
+
+  const normalizeStatus = (value) => String(value || "").toLowerCase().trim();
+  const isDeliveredShipment = (shipment) =>
+    normalizeStatus(shipment?.status).includes("delivered");
+
+  const activeShipments = useMemo(
+    () =>
+      filteredAndSortedShipments.filter(
+        (shipment) => !isDeliveredShipment(shipment),
+      ),
+    [filteredAndSortedShipments],
+  );
+
 
   return (
     <div className="min-h-screen bg-light customer-page">
@@ -125,73 +144,82 @@ export default function Shipments() {
             </thead>
 
             <tbody>
-              {filteredAndSortedShipments.map((s) => (
-                <tr
-                  key={s._id || s.id}
-                  className="border-b hover:bg-gray-50"
-                >
-                  <td className="p-3">{s._id || s.id}</td>
-                  <td className="p-3">{s.status}</td>
-                  <td className="p-3">
-                    <span
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-                        Number(s.alertCount || 0) > 0
-                          ? "bg-red-100 text-red-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {Number(s.alertCount || 0)}
-                    </span>
-                  </td>
-                  <td className="p-3">{s.pickupCity}</td>
-                  <td className="p-3">{s.deliveryCity}</td>
-                  <td className="p-3">
-                    {(() => {
-                      const riderInfo = getRiderDetails(s);
-                      if (!riderInfo.name && !riderInfo.status) {
-                        return (
-                          <p className="text-sm text-gray-500">
-                            Unassigned
-                          </p>
-                        );
-                      }
-                      return (
-                        <div className="space-y-1">
-                          <p className="font-semibold text-primary">
-                            {riderInfo.name || "Unknown Rider"}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Status: {riderInfo.status || "Unassigned"}
-                          </p>
-                          {(riderInfo.city || riderInfo.zone || riderInfo.phone) ? (
-                            <div className="text-xs text-gray-500">
-                              {riderInfo.city ? <p>{riderInfo.city}</p> : null}
-                              {riderInfo.zone ? <p>{riderInfo.zone}</p> : null}
-                              {riderInfo.phone ? <p>{riderInfo.phone}</p> : null}
-                            </div>
-                          ) : null}
-                        </div>
-                      );
-                    })()}
-                  </td>
-                  <td className="p-3">
-                    <button
-                      onClick={() => {
-                        const shipmentId = s._id || s.id;
-                        if (shipmentId) {
-                          window.location.href = `/admin/shipments/${shipmentId}`;
+              {activeShipments.length ? (
+                activeShipments.map((s) => (
+                  <tr
+                    key={s._id || s.id}
+                    className="border-b hover:bg-gray-50"
+                  >
+                    <td className="p-3">{s._id || s.id}</td>
+                    <td className="p-3">{s.status}</td>
+                    <td className="p-3">
+                      <span
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                          Number(s.alertCount || 0) > 0
+                            ? "bg-red-100 text-red-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {Number(s.alertCount || 0)}
+                      </span>
+                    </td>
+                    <td className="p-3">{s.pickupCity}</td>
+                    <td className="p-3">{s.deliveryCity}</td>
+                    <td className="p-3">
+                      {(() => {
+                        const riderInfo = getRiderDetails(s);
+                        if (!riderInfo.name && !riderInfo.status) {
+                          return (
+                            <p className="text-sm text-gray-500">
+                              Unassigned
+                            </p>
+                          );
                         }
-                      }}
-                      className="customer-button text-primary font-semibold hover:underline"
-                    >
-                      View
-                    </button>
+                        return (
+                          <div className="space-y-1">
+                            <p className="font-semibold text-primary">
+                              {riderInfo.name || "Unknown Rider"}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Status: {riderInfo.status || "Unassigned"}
+                            </p>
+                            {(riderInfo.city || riderInfo.zone || riderInfo.phone) ? (
+                              <div className="text-xs text-gray-500">
+                                {riderInfo.city ? <p>{riderInfo.city}</p> : null}
+                                {riderInfo.zone ? <p>{riderInfo.zone}</p> : null}
+                                {riderInfo.phone ? <p>{riderInfo.phone}</p> : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() => {
+                          const shipmentId = s._id || s.id;
+                          if (shipmentId) {
+                            window.location.href = `/admin/shipments/${shipmentId}`;
+                          }
+                        }}
+                        className="customer-button text-primary font-semibold hover:underline"
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td className="p-6 text-center text-gray-500" colSpan={7}>
+                    No active shipments found.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
+
       </div>
     </div>
   );

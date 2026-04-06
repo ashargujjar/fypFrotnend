@@ -25,6 +25,14 @@ export default function AdminDashboardHome() {
       orbClass: "bg-primary/10",
     },
     {
+      title: "Manage Customers",
+      description: "Review balances, deliveries, and payments.",
+      to: "/admin/customers",
+      icon: "CU",
+      iconClass: "bg-teal-500",
+      orbClass: "bg-teal-200/40",
+    },
+    {
       title: "Rider Management",
       description: "Add riders and monitor delivery performance.",
       to: "/admin/riders",

@@ -5,6 +5,7 @@ export default function AdminSidebar() {
   const navItems = [
     { label: "Dashboard", to: "/admin/dashboard" },
     { label: "Shipments", to: "/admin/shipments" },
+    { label: "Customers", to: "/admin/customers" },
     { label: "Riders", to: "/admin/riders" },
     { label: "Assignments", to: "/admin/assignments" },
     { label: "IoT Center", to: "/admin/iot" },

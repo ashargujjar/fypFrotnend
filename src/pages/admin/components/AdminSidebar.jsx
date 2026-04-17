@@ -10,7 +10,7 @@ export default function AdminSidebar() {
     { label: "Assignments", to: "/admin/assignments" },
     { label: "IoT Center", to: "/admin/iot" },
     { label: "Manage Cities", to: "/admin/cities" },
-    { label: "Blockchain", to: "/admin/blockchain" },
+    { label: "Delivery Rates", to: "/admin/rates" },
     { label: "Profile", to: "/admin/profile" },
     { label: "Logout", to: "/login" },
   ];

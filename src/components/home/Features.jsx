@@ -5,13 +5,13 @@ const features = [
     img: "https://images.pexels.com/photos/4484071/pexels-photo-4484071.jpeg",
   },
   {
-    title: "AI Powered ETA & Risk Prediction",
-    desc: "Our algorithms detect delays and predict arrival times accurately.",
+    title: "On-Time ETA Updates",
+    desc: "Keep customers informed with clear ETAs and delay notifications.",
     img: "https://images.pexels.com/photos/2569839/pexels-photo-2569839.jpeg",
   },
   {
-    title: "Blockchain Verified Milestones",
-    desc: "Every shipment event is recorded permanently on blockchain.",
+    title: "Milestone & POD Tracking",
+    desc: "Log every pickup, transit, and delivery update with proof of delivery.",
     img: "https://images.pexels.com/photos/4484073/pexels-photo-4484073.jpeg",
   },
 ];

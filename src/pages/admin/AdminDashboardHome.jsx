@@ -65,6 +65,14 @@ export default function AdminDashboardHome() {
       orbClass: "bg-indigo-200/40",
     },
     {
+      title: "Delivery Rates",
+      description: "Control base pricing and intercity routes.",
+      to: "/admin/rates",
+      icon: "RT",
+      iconClass: "bg-orange-500",
+      orbClass: "bg-orange-200/40",
+    },
+    {
       title: "Complaint Management",
       description: "Resolve customer tickets and escalations.",
       to: "/admin/complaints",

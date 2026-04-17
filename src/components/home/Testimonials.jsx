@@ -1,4 +1,4 @@
-const reviews = [
+﻿const reviews = [
   {
     name: "Ahmed Khan",
     role: "E-Commerce Seller",
@@ -17,7 +17,7 @@ const reviews = [
     name: "Bilal Sheikh",
     role: "Logistics Manager",
     review:
-      "The blockchain milestone logs provide unmatched transparency and trust.",
+      "Milestone updates and POD visibility provide unmatched transparency and trust.",
     img: "https://randomuser.me/api/portraits/men/14.jpg",
   },
 ];
@@ -41,7 +41,7 @@ export default function Testimonials() {
             >
               <img src={r.img} className="w-16 mx-auto rounded-full" />
 
-              <p className="text-gray-700 mt-4 italic">“{r.review}”</p>
+              <p className="text-gray-700 mt-4 italic">"{r.review}"</p>
 
               <div className="mt-4">
                 <h3 className="text-lg font-bold">{r.name}</h3>
@@ -54,3 +54,5 @@ export default function Testimonials() {
     </section>
   );
 }
+
+

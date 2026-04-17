@@ -43,6 +43,7 @@ export default function BookShipment() {
   const [walletBal, setWalletBal] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deliveryCharge, setDeliveryCharge] = useState(0);
+  const [chargeBreakdown, setChargeBreakdown] = useState(null);
   const [isChargeLoading, setIsChargeLoading] = useState(false);
   const token = localStorage.getItem("token");
   const [form, setForm] = useState({
@@ -110,6 +111,7 @@ export default function BookShipment() {
       form.pickupCity && form.deliveryCity && Number(form.weight) > 0;
     if (!shouldCalculate) {
       setDeliveryCharge(0);
+      setChargeBreakdown(null);
       return;
     }
 
@@ -143,12 +145,17 @@ export default function BookShipment() {
             data?.data?.deliveryCharge ??
             data?.data?.deliveryCharges;
           setDeliveryCharge(Number(nextCharge) || 0);
+          const breakdown =
+            data?.breakdown ?? data?.data?.breakdown ?? data?.details ?? null;
+          setChargeBreakdown(breakdown);
         } else {
           setDeliveryCharge(0);
+          setChargeBreakdown(null);
         }
       } catch (error) {
         if (error?.name !== "AbortError") {
           setDeliveryCharge(0);
+          setChargeBreakdown(null);
         }
       } finally {
         setIsChargeLoading(false);
@@ -341,6 +348,7 @@ export default function BookShipment() {
           <PaymentMethod
             codAmount={codAmount}
             codToCollect={codToCollect}
+            chargeBreakdown={chargeBreakdown}
             deliveryCharge={deliveryCharge}
             errors={errors}
             formatCurrency={formatCurrency}
@@ -348,6 +356,7 @@ export default function BookShipment() {
             isChargeLoading={isChargeLoading}
             inputClass={inputClass}
             netToWallet={netToWallet}
+            shipmentWeight={form.weight}
             setCodAmount={setCodAmount}
             setUseWallet={setUseWallet}
             useWallet={useWallet}

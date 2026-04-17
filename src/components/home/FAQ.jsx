@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 const faq = [
   {
@@ -6,8 +6,8 @@ const faq = [
     a: "We use IoT GPS + temperature + shock sensors connected to our backend.",
   },
   {
-    q: "How does blockchain help in logistics?",
-    a: "Each shipment milestone is permanently logged, preventing fraud or tampering.",
+    q: "How do you ensure shipment milestones are accurate?",
+    a: "We log pickup, transit, and delivery updates with timestamps and POD.",
   },
   {
     q: "Is ShipSmart suitable for cold-chain?",
@@ -34,7 +34,7 @@ export default function FAQ() {
             >
               <h3 className="font-bold text-lg flex justify-between">
                 {item.q}
-                <span>{open === index ? "−" : "+"}</span>
+                <span>{open === index ? "-" : "+"}</span>
               </h3>
 
               {open === index && <p className="text-gray-600 mt-3">{item.a}</p>}
@@ -45,3 +45,4 @@ export default function FAQ() {
     </section>
   );
 }
+

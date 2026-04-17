@@ -1,6 +1,7 @@
 export default function PaymentMethod({
   codAmount,
   codToCollect,
+  chargeBreakdown,
   deliveryCharge,
   errors,
   formatCurrency,
@@ -8,10 +9,22 @@ export default function PaymentMethod({
   isChargeLoading,
   inputClass,
   netToWallet,
+  shipmentWeight,
   setCodAmount,
   setUseWallet,
   useWallet,
 }) {
+  const perKgRate = Number(chargeBreakdown?.perKgRate) || 0;
+  const baseCharge = Number(chargeBreakdown?.baseCharge) || 0;
+  const fixedRate = Number(chargeBreakdown?.fixedRate) || 0;
+  const rateSource = String(chargeBreakdown?.rateSource || "");
+  const fixedLabel =
+    rateSource === "cityToCity"
+      ? "City-to-city fixed rate"
+      : rateSource === "intercityFixed"
+        ? "Intercity fixed rate"
+        : "Fixed rate";
+
   return (
     <div>
       <h2 className="text-xl font-bold text-primary mb-4">Payment Method</h2>
@@ -83,6 +96,40 @@ export default function PaymentMethod({
             value={formatCurrency(netToWallet)}
             accent
           />
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3 text-xs text-gray-600">
+          <div className="bg-white rounded-lg border border-gray-100 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-gray-400">
+              Base (per Kg)
+            </p>
+            <p className="font-semibold text-gray-800">
+              {isChargeLoading
+                ? "Calculating..."
+                : `${formatCurrency(baseCharge)} (${perKgRate}/kg × ${
+                    shipmentWeight || 0
+                  }kg)`}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-100 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-gray-400">
+              {fixedLabel}
+            </p>
+            <p className="font-semibold text-gray-800">
+              {isChargeLoading
+                ? "Calculating..."
+                : formatCurrency(fixedRate)}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-100 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-gray-400">
+              Total
+            </p>
+            <p className="font-semibold text-gray-800">
+              {isChargeLoading
+                ? "Calculating..."
+                : formatCurrency(deliveryCharge || 0)}
+            </p>
+          </div>
         </div>
         <p className="text-xs text-gray-500">
           Riders collect COD plus delivery charges when wallet is off. Your

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 
 export default function Hero() {
   return (
@@ -18,13 +18,12 @@ export default function Hero() {
           <h1 className="text-5xl font-extrabold text-white leading-tight drop-shadow-lg">
             Next-Gen Smart Logistics
             <span className="block text-secondary">
-              Powered by AI • IoT • Blockchain
+              Powered by IoT | Real-Time Tracking | Smart Dispatch
             </span>
           </h1>
 
           <p className="text-gray-200 mt-4 text-lg max-w-lg">
-            Experience real-time tracking, predictive analytics, and verified
-            delivery through cutting-edge logistics technology.
+            Experience real-time tracking, proactive alerts, and clear delivery updates across every shipment.
           </p>
 
           <div className="mt-8 flex space-x-4">
@@ -51,3 +50,5 @@ export default function Hero() {
     </section>
   );
 }
+
+
